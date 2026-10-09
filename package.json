@@ -1,0 +1,14 @@
+{
+  "name": "session-radar",
+  "private": true,
+  "type": "module",
+  "description": "Development scripts only. Claude Code loads the mod from hooks/register.js and does not read this file.",
+  "scripts": {
+    "check": "node --check hooks/register.js",
+    "test": "node tests/simulate.mjs",
+    "preview": "node tests/simulate.mjs --print"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

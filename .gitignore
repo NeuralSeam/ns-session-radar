@@ -1,0 +1,8 @@
+# Files /radar-export writes into a project
+session-radar-*.json
+
+# Type declarations Claude Code writes when the mod is loaded with --plugin-dir
+.claude-plugin/types/
+
+node_modules/
+.DS_Store
