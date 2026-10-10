@@ -198,9 +198,10 @@ not work.
 - Changes: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - Release history: [CHANGELOG.md](./CHANGELOG.md)
 
-**Licence:** Apache-2.0, see [LICENSE](./LICENSE) and [NOTICE](./NOTICE). Releases published
-before the change remain available under MIT. The licence grants no rights to the Neural Seam name
-or logo; see [TRADEMARKS.md](./TRADEMARKS.md).
+**Licence:** Apache-2.0, see [LICENSE](./LICENSE) and [NOTICE](./NOTICE). Version 0.2.0, as
+[published in this repository](https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51)
+before the change, remains available under MIT. The licence grants no rights to the Neural Seam
+name or logo; see [TRADEMARKS.md](./TRADEMARKS.md).
 
 Session Radar is an independent extension for Claude Code. It is not made or endorsed by Anthropic.
 

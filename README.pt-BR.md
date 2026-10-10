@@ -57,8 +57,9 @@ Problemas e dúvidas: [issues](https://github.com/NeuralSeam/ns-session-radar/is
 
 ## Licença
 
-Apache-2.0: veja o [LICENSE](./LICENSE) e o [NOTICE](./NOTICE). As versões publicadas antes da
-mudança continuam disponíveis sob MIT. A licença não concede direitos sobre o nome e o logo da
+Apache-2.0: veja o [LICENSE](./LICENSE) e o [NOTICE](./NOTICE). A versão 0.2.0,
+[publicada neste repositório](https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51)
+antes da mudança, continua disponível sob MIT. A licença não concede direitos sobre o nome e o logo da
 Neural Seam; veja o [TRADEMARKS.md](./TRADEMARKS.md).
 
 O Session Radar é uma extensão independente para o Claude Code. Não é feito nem endossado pela
