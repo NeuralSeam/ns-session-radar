@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.3.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-10 |
 | 0.2.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-06 |
 | 0.1.0 | — (simulated, see below) | — | Linux, Node 22 | 2026-10-02 |
 
@@ -20,6 +21,9 @@ alone, keeps the spinner's own props, and exports the counts the simulated sessi
 **What the 0.2.0 row adds:** the same run, plus the Activities tab (which calls each prompt lists,
 opening one by pressing it), the cache lifetime drawn from a reported 1 hour TTL, the API legend,
 and `/radar-lang` and the `l` key switching and storing the language.
+
+**What the 0.3.0 row adds:** the same run, plus the credit line on the last row of every tab in
+both languages, and the `generator` field added to the export beside the existing ones.
 
 **What it does not cover:** a real Claude Code session. Until a row with a `claude --version` is
 here, treat the drawing and the subagent links as unverified on your build. The checks in

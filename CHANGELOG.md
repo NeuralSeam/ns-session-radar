@@ -8,6 +8,8 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-10
+
 ### Changed
 
 - License changed from MIT to Apache-2.0 from this version onward; earlier releases remain
@@ -65,5 +67,6 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/e6d2d1cb3c06110318a949bdae909489040e8d51...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...main
+[0.3.0]: https://github.com/NeuralSeam/ns-session-radar/compare/e6d2d1cb3c06110318a949bdae909489040e8d51...v0.3.0
 [0.2.0]: https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51
