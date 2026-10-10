@@ -1,3 +1,6 @@
+// Copyright 2026 Neural Seam
+// SPDX-License-Identifier: Apache-2.0
+
 // Runs the mod against a fake Claude Code, with no session and no network.
 //
 //   npm test            checks every tab draws and the numbers add up

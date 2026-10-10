@@ -1,3 +1,6 @@
+// Copyright 2026 Neural Seam
+// SPDX-License-Identifier: Apache-2.0
+
 // session-radar: a live view of what Claude Code is doing.
 //
 // Collected while Claude works:
