@@ -12,8 +12,10 @@
       "description": "A mod that shows what Claude Code is doing, live: tool calls, subagents, MCP and web calls, and model requests with tokens and cache. Open it with /radar.",
       "version": "0.2.0",
       "author": {
-        "name": "Neural Seam"
-      }
+        "name": "Neural Seam",
+        "url": "https://neuralseam.cloud"
+      },
+      "license": "Apache-2.0"
     }
   ]
 }

@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/NeuralSeam/ns-session-radar",
   "repository": "https://github.com/NeuralSeam/ns-session-radar",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "claude-code",
     "claude-code-mod",
