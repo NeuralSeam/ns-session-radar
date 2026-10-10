@@ -1,6 +1,6 @@
 {
-  "name": "session-radar-local",
-  "description": "Local marketplace for developing and installing Session Radar from this folder.",
+  "name": "ns-session-radar",
+  "description": "Session Radar, a Claude Code mod from Neural Seam.",
   "owner": {
     "name": "Neural Seam",
     "url": "https://neuralseam.cloud"

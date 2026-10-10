@@ -89,16 +89,13 @@ default, follows your system language. The choice is kept for your next sessions
 
 ## Install
 
-From the Neural Seam marketplace. Two steps, in this order, because the install resolves the plugin
-against marketplaces you have already added:
+This repository is its own marketplace. Two steps, in this order, because the install resolves the
+plugin against marketplaces you have already added:
 
 ```
-/plugin marketplace add NeuralSeam/neural-seam-claude
-/plugin install session-radar@neural-seam
+/plugin marketplace add NeuralSeam/ns-session-radar
+/plugin install session-radar@ns-session-radar
 ```
-
-If you already have the marketplace for the Neural Seam plugin, run `/plugin marketplace update`
-instead of the first line.
 
 If the install says `Run /reload-plugins to activate.`, do that. Then check:
 
@@ -171,10 +168,10 @@ with `--plugin-dir`.
 ```
 
 ```
-/plugin uninstall session-radar@neural-seam
+/plugin uninstall session-radar@ns-session-radar
 ```
 
-To keep it installed but stop it, `/plugin disable session-radar@neural-seam`. Starting Claude Code
+To keep it installed but stop it, `/plugin disable session-radar@ns-session-radar`. Starting Claude Code
 with `--safe-mode`, or setting `"disableAllHooks": true`, also stops it.
 
 ## Troubleshooting
