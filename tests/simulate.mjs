@@ -1,3 +1,6 @@
+// Copyright 2026 Neural Seam
+// SPDX-License-Identifier: Apache-2.0
+
 // Runs the mod against a fake Claude Code, with no session and no network.
 //
 //   npm test            checks every tab draws and the numbers add up
@@ -118,6 +121,22 @@ assert.equal(data.totals.errors, 1)
 assert.equal(data.totals.denied, 1)
 assert.equal(data.agents.find((a) => a.id === 'ag1').parent, 'main')
 assert.ok(data.spans.every((s) => s.label.length <= 120), 'labels are capped')
+// The credit is added beside the existing fields, never in place of one
+assert.equal(data.generator, 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)')
+assert.equal(data.tool, 'session-radar')
+assert.deepEqual(Object.keys(data), ['tool', 'generator', 'exportedAt', 'startedAt', 'totals', 'turns', 'agents', 'spans'])
+
+// The credit sits on the last line of every tab, in the pane's language, and only in the pane
+const lastLine = async () => flat(await drawPane()).split('\n').at(-1)
+await fire('command.run', { command: 'radar-lang', args: 'en' })
+for (const id of ['timeline', 'activities', 'agents', 'api', 'summary']) {
+  findKey(await drawPane(), 'tab-' + id).onPress()
+  assert.equal(await lastLine(), 'Session Radar · by Neural Seam · neuralseam.cloud', `credit on ${id}`)
+}
+await fire('command.run', { command: 'radar-lang', args: 'pt' })
+assert.equal(await lastLine(), 'Session Radar · por Neural Seam · neuralseam.cloud')
+findKey(await drawPane(), 'tab-timeline').onPress()
+assert.ok(!spin.props.suffix.includes('Neural Seam'), 'the spinner summary carries no credit')
 
 // The checks below read English text, whatever the machine's language
 await fire('command.run', { command: 'radar-lang', args: 'en' })

@@ -1,3 +1,6 @@
+// Copyright 2026 Neural Seam
+// SPDX-License-Identifier: Apache-2.0
+
 // session-radar: a live view of what Claude Code is doing.
 //
 // Collected while Claude works:
@@ -15,6 +18,7 @@ const PANE = 'session-radar'
 const MAX_SPANS = 500
 const MAX_TURNS = 200
 const MAX_LABEL = 120
+const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 const LANGS = ['auto', 'pt', 'en']
 const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 
@@ -74,6 +78,7 @@ const STRINGS = {
     langAuto: 'auto (system language)',
     langUsage: 'Use /radar-lang pt, /radar-lang en or /radar-lang auto.',
     exported: 'Radar exported to', exportFailed: 'Could not export the radar:', exportNone: 'Could not export the radar.',
+    credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
   },
   pt: {
     tabTimeline: 'Tempo', tabActivities: 'Atividades', tabAgents: 'Agentes', tabApi: 'API', tabSummary: 'Resumo',
@@ -125,6 +130,7 @@ const STRINGS = {
     langAuto: 'auto (idioma do sistema)',
     langUsage: 'Use /radar-lang pt, /radar-lang en ou /radar-lang auto.',
     exported: 'Radar exportado para', exportFailed: 'Não foi possível exportar o radar:', exportNone: 'Não foi possível exportar o radar.',
+    credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
   },
 }
 
@@ -364,6 +370,7 @@ function liveSuffix() {
 function snapshot() {
   return {
     tool: 'session-radar',
+    generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     startedAt: new Date(S.startedAt).toISOString(),
     totals: S.totals,
@@ -1024,7 +1031,8 @@ export function register(on) {
       ],
     })
 
-    const room = Math.max(6, bodyRows - 7)
+    // Two rows fewer for the body, so the credit footer stays on screen
+    const room = Math.max(6, bodyRows - 9)
     let body
     if (tab === 'timeline') body = timelineBody(ui, width, room - 3)
     else if (tab === 'activities') body = activitiesBody(ui, $, width, room)
@@ -1032,6 +1040,7 @@ export function register(on) {
     else if (tab === 'api') body = await apiBody(ui, $, width, room)
     else body = summaryBody(ui, width)
 
-    return Box({ flexDirection: 'column', children: [tabs, actions, status, T(Text, ' '), ...body] })
+    const credit = T(Text, trunc(L.credit, width), { dimColor: true })
+    return Box({ flexDirection: 'column', children: [tabs, actions, status, T(Text, ' '), ...body, T(Text, ' '), credit] })
   })
 }

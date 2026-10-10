@@ -198,6 +198,20 @@ not work.
 - Changes: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - Release history: [CHANGELOG.md](./CHANGELOG.md)
 
-**Licence:** MIT, see [LICENSE](./LICENSE). It grants no rights to the Neural Seam name or logo.
+**Licence:** Apache-2.0, see [LICENSE](./LICENSE) and [NOTICE](./NOTICE). Version 0.2.0, as
+[published in this repository](https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51)
+before the change, remains available under MIT. The licence grants no rights to the Neural Seam
+name or logo; see [TRADEMARKS.md](./TRADEMARKS.md).
 
 Session Radar is an independent extension for Claude Code. It is not made or endorsed by Anthropic.
+
+## Credits and forks
+
+You are welcome to redistribute Session Radar or build on it. If you do:
+
+- Keep the [LICENSE](./LICENSE) and [NOTICE](./NOTICE) files, and preserve the credit to Neural
+  Seam.
+- Give your derivative a name of its own; [TRADEMARKS.md](./TRADEMARKS.md) says what you can and
+  cannot call it.
+- [Open an issue](https://github.com/NeuralSeam/ns-session-radar/issues) to have your project listed
+  here as a derivative.

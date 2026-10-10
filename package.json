@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "description": "Development scripts only. Claude Code loads the mod from hooks/register.js and does not read this file.",
+  "license": "Apache-2.0",
+  "author": "Neural Seam (https://neuralseam.cloud)",
   "scripts": {
     "check": "node --check hooks/register.js",
     "test": "node tests/simulate.mjs",

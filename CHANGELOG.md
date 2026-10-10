@@ -6,6 +6,20 @@ independent SemVer.
 Entries are newest first and record what you can notice when you install or update: new behaviour,
 fixes, security changes, compatibility changes, and anything you have to do by hand.
 
+## [Unreleased]
+
+## [0.3.0] - 2026-10-10
+
+### Changed
+
+- License changed from MIT to Apache-2.0 from this version onward; earlier releases remain
+  available under MIT. That is 0.2.0, the version published at
+  https://github.com/NeuralSeam/ns-session-radar up to commit `e6d2d1c`.
+
+### Added
+
+- NOTICE, TRADEMARKS.md, credit line in the pane, generator field in the export.
+
 ## [0.2.0] - 2026-10-06
 
 ### Added
@@ -33,9 +47,9 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 - It now uses `$.store`, to keep your language choice and nothing else.
   [SECURITY.md](./SECURITY.md) and [PRIVACY.md](./PRIVACY.md) are updated.
 
-## [0.1.0] - 2026-10-02
+## 0.1.0 - 2026-10-02
 
-First release.
+First version. Never published on its own: the public repository starts at 0.2.0, which includes it.
 
 ### Added
 
@@ -53,5 +67,6 @@ First release.
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[0.2.0]: https://github.com/NeuralSeam/ns-session-radar/releases/tag/v0.2.0
-[0.1.0]: https://github.com/NeuralSeam/ns-session-radar/releases/tag/v0.1.0
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...main
+[0.3.0]: https://github.com/NeuralSeam/ns-session-radar/compare/e6d2d1cb3c06110318a949bdae909489040e8d51...v0.3.0
+[0.2.0]: https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51

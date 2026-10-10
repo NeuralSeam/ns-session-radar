@@ -3,6 +3,23 @@
 Issues and pull requests are welcome. Keep changes small and say what they change for someone using
 the mod.
 
+## Licence of contributions and sign-off
+
+Session Radar is licensed under [Apache-2.0](./LICENSE). As section 5 of that licence says, anything
+you submit for inclusion is contributed under the same licence, with no additional terms.
+
+Every commit must carry a [Developer Certificate of Origin](https://developercertificate.org/)
+sign-off: a line that says you wrote the change, or otherwise have the right to submit it under this
+licence. Sign each commit with `-s`, which adds the line from your git `user.name` and `user.email`:
+
+```bash
+git commit -s -m "fix: keep the pane width under 84 columns"
+# adds: Signed-off-by: Your Name <you@example.com>
+```
+
+Forgot it? `git commit --amend -s` fixes the last commit, and `git rebase --signoff main` fixes every
+commit on your branch. Pull requests with unsigned commits are not merged.
+
 ## Develop
 
 ```bash
