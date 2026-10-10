@@ -6,6 +6,17 @@ independent SemVer.
 Entries are newest first and record what you can notice when you install or update: new behaviour,
 fixes, security changes, compatibility changes, and anything you have to do by hand.
 
+## [Unreleased]
+
+### Changed
+
+- License changed from MIT to Apache-2.0 from this version onward; earlier releases remain
+  available under MIT.
+
+### Added
+
+- NOTICE, TRADEMARKS.md, credit line in the pane, generator field in the export.
+
 ## [0.2.0] - 2026-10-06
 
 ### Added

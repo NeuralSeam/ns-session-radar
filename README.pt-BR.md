@@ -53,4 +53,22 @@ No painel: `1` a `5` trocam de aba (Tempo, Atividades, Agentes, API, Resumo), `l
 /plugin uninstall session-radar@ns-session-radar
 ```
 
-Problemas e dúvidas: [issues](https://github.com/NeuralSeam/ns-session-radar/issues). Licença MIT.
+Problemas e dúvidas: [issues](https://github.com/NeuralSeam/ns-session-radar/issues).
+
+## Licença
+
+Apache-2.0: veja o [LICENSE](./LICENSE) e o [NOTICE](./NOTICE). As versões publicadas antes da
+mudança continuam disponíveis sob MIT. A licença não concede direitos sobre o nome e o logo da
+Neural Seam; veja o [TRADEMARKS.md](./TRADEMARKS.md).
+
+O Session Radar é uma extensão independente para o Claude Code. Não é feito nem endossado pela
+Anthropic.
+
+## Créditos e forks
+
+Você pode redistribuir o Session Radar ou criar projetos derivados dele. Se fizer isso:
+
+- Mantenha os arquivos [LICENSE](./LICENSE) e [NOTICE](./NOTICE) e preserve o crédito à Neural Seam.
+- Dê ao projeto derivado um nome próprio; o [TRADEMARKS.md](./TRADEMARKS.md) diz o que é permitido.
+- [Abra uma issue](https://github.com/NeuralSeam/ns-session-radar/issues) para ter o seu projeto
+  listado como derivado.
