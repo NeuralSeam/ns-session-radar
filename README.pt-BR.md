@@ -19,8 +19,8 @@ Code do app Desktop.
 ## Instalar
 
 ```
-/plugin marketplace add NeuralSeam/neural-seam-claude
-/plugin install session-radar@neural-seam
+/plugin marketplace add NeuralSeam/ns-session-radar
+/plugin install session-radar@ns-session-radar
 ```
 
 Se aparecer `Run /reload-plugins to activate.`, rode esse comando. O `/plugin` deve mostrar
@@ -50,7 +50,7 @@ No painel: `1` a `5` trocam de aba (Tempo, Atividades, Agentes, API, Resumo), `l
 ## Desinstalar
 
 ```
-/plugin uninstall session-radar@neural-seam
+/plugin uninstall session-radar@ns-session-radar
 ```
 
 Problemas e dúvidas: [issues](https://github.com/NeuralSeam/ns-session-radar/issues). Licença MIT.

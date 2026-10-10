@@ -37,6 +37,6 @@ file, not memory, is the source for event and field names.
 4. Repeat 3 in the Desktop app's Code tab.
 5. Add a row to [COMPATIBILITY.md](./COMPATIBILITY.md) with `claude --version`, the surface and
    the date.
-6. Bump `version` in `.claude-plugin/plugin.json`, add a [CHANGELOG.md](./CHANGELOG.md) entry,
-   tag `vX.Y.Z` with a signed tag, and update the entry in the
-   [Neural Seam marketplace](https://github.com/NeuralSeam/neural-seam-claude/blob/main/.claude-plugin/marketplace.json).
+6. Bump `version` in `.claude-plugin/plugin.json` and in the entry in
+   `.claude-plugin/marketplace.json` (they must agree), add a [CHANGELOG.md](./CHANGELOG.md) entry,
+   and tag `vX.Y.Z` with a signed tag.
