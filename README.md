@@ -106,6 +106,7 @@ press Enter to change a line:
 | Warn before the cache expires | One notification per cache entry, 30 s to 5 min before the main session's cache expires, while nothing is running: how long is left and how many tokens the next request would rewrite. An unknown TTL counts as 5 minutes, and the text says so |
 | Insights, with per-project history | Turns on the Insights tab and keeps counts per project between sessions (below) |
 | Suggest the AI review | Shows the [AI review](#ai-review) in the Insights tab |
+| Always show this session's badge | Keeps the session's badge under the prompt even with the browser view closed. See [Browser view](#browser-view) |
 | Delete the stored history | Deletes every project's history |
 | Language | auto, Portuguese or English |
 
@@ -204,9 +205,24 @@ small server, `web/server.mjs` (Node, no dependencies), and your default browser
 reply and the pane also show the address as a link, for when no browser can be opened.
 
 The page has the same five areas as the pane's first five tabs, Timeline, Activities, Agents, API
-and Summary (Insights and Config stay in the pane), plus a search box, filters by kind, status, agent and time window, sortable tables, charts of the prompt per request
-(cache read, cache written, new) and of each activity's duration, and a panel with every detail of
+and Summary (Insights and Config stay in the pane), plus a search box, filters by kind, status,
+agent and time window, sortable tables, charts of the prompt per request (cache read, cache written,
+new) and of each activity's duration, and a panel with every detail of
 a call or subagent. Keys: `1` to `5` switch area, `/` searches, `Esc` closes the panel.
+
+**Several sessions at once.** Each session has a badge: a mark and a four-letter code, such as
+`▲ K7QF`, in one of four colours, worked out from the session's id, so it stays the same when the
+mod reloads and differs from one session to the next. While the browser view runs, the badge shows
+under the prompt of the session's terminal (`▲ radar K7QF`), and the same badge is on the page:
+
+- the tab's title, `▲ K7QF · my-app · Session Radar`, and its icon, the mark in the session's colour;
+- a band in that colour across the top, and the badge in the header with the project folder and the
+  model; hover it for the full path;
+- when the session or its server ends, the title turns into `✕ K7QF · ended` and the icon grey, so
+  you know which tabs to close.
+
+The pane's status row starts with the badge too. To keep it under the prompt even with the browser
+view closed, turn on `Always show this session's badge` in Config.
 
 How it is kept local:
 

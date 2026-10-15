@@ -73,7 +73,25 @@ interface segue o idioma do sistema.
     servidores.
   - *Sugerir a análise com IA*, *Apagar o histórico guardado* e o idioma.
 
+  - *Sempre mostrar o crachá desta sessão*, abaixo do prompt (veja abaixo).
+
   As notificações usam o canal de notificação do Claude Code (`preferredNotifChannel`).
+
+## Várias sessões ao mesmo tempo
+
+Cada sessão tem um crachá: uma marca e um código de quatro letras, como `▲ K7QF`, numa de quatro
+cores, calculados a partir do id da sessão. O crachá não muda quando o mod recarrega e é diferente
+de uma sessão para outra. Enquanto o radar no navegador roda, ele aparece abaixo do prompt do
+terminal da sessão (`▲ radar K7QF`), e o mesmo crachá aparece na página:
+
+- no título da aba, `▲ K7QF · meu-app · Session Radar`, e no ícone, a marca na cor da sessão;
+- numa faixa dessa cor no topo, e no cabeçalho com a pasta do projeto e o modelo; passe o mouse
+  para ver o caminho completo;
+- quando a sessão ou o servidor termina, o título vira `✕ K7QF · encerrada` e o ícone fica cinza,
+  para você saber quais abas pode fechar.
+
+A linha de status do painel também começa com o crachá. Para mantê-lo abaixo do prompt mesmo com o
+navegador fechado, ligue *Sempre mostrar o crachá desta sessão* em Config.
 
 ## Análise com IA
 

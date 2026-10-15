@@ -6,13 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>Session Radar</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" id="favicon" href="data:,">
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <div class="app">
-    <header class="top">
+    <header class="top" id="top">
       <div class="brand">Session Radar</div>
+      <div class="badge" id="badge" hidden></div>
       <div class="conn" id="conn"><span class="dot"></span><span id="conn-text"></span></div>
       <dl class="metrics" id="metrics"></dl>
     </header>

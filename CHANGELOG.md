@@ -8,6 +8,25 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-15
+
+### Added
+
+- **Session badge**, to tell parallel sessions apart in the browser: a mark and a four-letter code
+  in one of four colours (`▲ K7QF`), worked out from the session's id. While the browser view runs
+  it shows under the prompt of the session's terminal, and the page carries it in the tab's title
+  and icon, a coloured band and the header, with the project folder and the model. When the session
+  ends the tab turns into `✕ K7QF · ended` with a grey icon.
+- The pane's status row starts with the badge, and `/radar-web` names it in its reply.
+- Config: **Always show this session's badge** keeps it under the prompt with the browser view
+  closed. Off by default.
+
+### Privacy and security
+
+- New mods API calls: `$.ui.status` (the badge under the prompt), `$.session.id` (hashed into the
+  badge, never kept or sent) and `$.session.model` (named on the page). The snapshot the browser view
+  receives also carries the session's folder and model; the export file is unchanged.
+
 ## [0.4.0] - 2026-10-15
 
 ### Added
@@ -108,7 +127,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...main
+[0.5.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NeuralSeam/ns-session-radar/compare/e6d2d1cb3c06110318a949bdae909489040e8d51...v0.3.0
 [0.2.0]: https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51

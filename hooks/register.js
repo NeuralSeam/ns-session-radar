@@ -30,7 +30,13 @@ const WEB_START_MS = 10_000
 const AI_REVIEW = '/session-radar:radar-review'
 
 // Settings, kept in the store under `config`. Everything that notifies or keeps more data starts off.
-const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false }
+const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false, badge: false }
+
+// Each session's badge: a mark and a four-letter code, the same under the terminal's prompt, in the
+// pane and in the browser tab, so parallel sessions are told apart. No 0/O, 1/I/L or U.
+const BADGE_CHARS = '23456789ABCDEFGHJKMNPQRSTVWXYZ'
+const BADGE_MARKS = ['●', '■', '▲', '★']
+const BADGE_COLORS = ['cyan', 'magenta', 'blue', 'green']
 const CHOICES = { notifyDoneMin: [15, 30, 60, 120], notifyCacheLead: [30, 60, 120, 300] }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +98,7 @@ const STRINGS = {
     credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
     web: 'Browser',
     cmdWeb: 'Open the radar in the browser, served from this machine only; /radar-web stop ends it',
-    webOpened: (url) => `Radar web view: ${url}`,
+    webOpened: (url, b) => `Radar web view ${b}: ${url}`,
     webStopped: 'Radar web view stopped.',
     webIdle: 'The radar web view is not running.',
     webFailed: 'Could not start the radar web view. It needs Node.js 20 or later on the PATH (`node`).',
@@ -111,6 +117,8 @@ const STRINGS = {
     cfgInsights: 'Insights, with per-project history',
     cfgAiHint: `Suggest the AI review (${AI_REVIEW})`,
     cfgClearHistory: 'Delete the stored history',
+    cfgBadge: (b) => `Always show this session's badge (${b}) under the prompt`,
+    cfgBadgeNote: 'It also shows there while the browser view runs, to tell its tab apart.',
     cfgHistoryCleared: 'History deleted.',
     cfgNotifyNote: 'Notifications use your Claude Code notification channel and never include a prompt.',
     cfgInsightsNote: 'History keeps counts per project between sessions: no prompts, no arguments.',
@@ -228,7 +236,7 @@ const STRINGS = {
     credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
     web: 'Navegador',
     cmdWeb: 'Abre o radar no navegador, servido só nesta máquina; /radar-web stop encerra',
-    webOpened: (url) => `Radar no navegador: ${url}`,
+    webOpened: (url, b) => `Radar no navegador ${b}: ${url}`,
     webStopped: 'Radar no navegador encerrado.',
     webIdle: 'O radar no navegador não está rodando.',
     webFailed: 'Não foi possível iniciar o radar no navegador. Ele precisa do Node.js 20 ou mais novo no PATH (`node`).',
@@ -247,6 +255,8 @@ const STRINGS = {
     cfgInsights: 'Insights, com histórico por projeto',
     cfgAiHint: `Sugerir a análise com IA (${AI_REVIEW})`,
     cfgClearHistory: 'Apagar o histórico guardado',
+    cfgBadge: (b) => `Sempre mostrar o crachá desta sessão (${b}) abaixo do prompt`,
+    cfgBadgeNote: 'Ele também aparece ali enquanto o radar no navegador roda, para achar a aba certa.',
     cfgHistoryCleared: 'Histórico apagado.',
     cfgNotifyNote: 'As notificações usam o canal de notificação do Claude Code e nunca trazem um prompt.',
     cfgInsightsNote: 'O histórico guarda contagens por projeto entre sessões: sem prompts, sem argumentos.',
@@ -404,6 +414,7 @@ let cwd = null
 let hist = null
 let mcpConfigured = []
 let histWrite = Promise.resolve()
+let badge = makeBadge(null)
 
 function fresh() {
   const startedAt = Date.now()
@@ -630,6 +641,34 @@ const clockTime = (ms) => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+// FNV-1a over the session id: the same session always gets the same badge, on every reload
+function makeBadge(id, project = null) {
+  let hash = 2166136261
+  for (const ch of String(id ?? Math.random())) {
+    hash ^= ch.codePointAt(0)
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  let code = ''
+  let x = hash
+  for (let i = 0; i < 4; i++) {
+    code += BADGE_CHARS[x % BADGE_CHARS.length]
+    x = Math.floor(x / BADGE_CHARS.length)
+  }
+  return { code, mark: BADGE_MARKS[x % 4], color: BADGE_COLORS[Math.floor(x / 4) % 4], project }
+}
+
+const badgeText = () => `${badge.mark} ${badge.code}`
+const baseName = (p) => (p ? String(p).replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p : null)
+
+// Under the prompt while the browser view runs, or always when the person asked for it
+function showBadge($) {
+  try {
+    $.ui.status(cfg.badge || web?.base ? `${badge.mark} radar ${badge.code}` : undefined)
+  } catch {
+    // No status line on this surface
+  }
+}
+
 function notifyTurnDone($, turn) {
   if (!cfg.notifyDone || !turn?.end || turn.end - turn.start < cfg.notifyDoneMin * 1000) return
   const main = S.agents.get('main')
@@ -769,12 +808,19 @@ async function pushWeb($) {
     } catch {
       // usage() is not available here; the page shows what the radar collected
     }
+    let model = null
+    try {
+      model = shortModel(await $.session.model())
+    } catch {
+      // The model is not available here
+    }
     const body = JSON.stringify({
       ...snapshot(),
       now: Date.now(),
       lang: L === STRINGS.pt ? 'pt' : 'en',
       ttlSeen: S.ttlSeen,
       usage,
+      session: { ...badge, cwd, model },
     })
     const res = await $.http.fetch(`${w.base}/api/ingest`, {
       method: 'POST',
@@ -806,6 +852,7 @@ function startWeb($) {
       w.timer?.cancel()
       if (web === w) web = null
       settle(null)
+      showBadge($)
       $.ui.invalidate('ui.render')
     }
     try {
@@ -830,6 +877,7 @@ function startWeb($) {
           w.timer = $.clock.every(WEB_PUSH_MS, () => pushWeb($))
           void pushWeb($)
           settle(w.url)
+          showBadge($)
           $.ui.invalidate('ui.render')
         }
       } catch {
@@ -856,6 +904,7 @@ async function stopWeb($) {
       // Already gone; without heartbeats it would end on its own anyway
     }
   }
+  showBadge($)
   // Not awaited: it settles only once the child has gone, which the shutdown above already asked for
   try {
     w.stream?.return?.()?.catch?.(() => {})
@@ -1332,6 +1381,12 @@ function configBody(ui, $, width) {
   out.push(T(Text, trunc('    ' + L.cfgInsightsNote, width), { dimColor: true }))
   out.push(row('clearHistory', '    ' + L.cfgClearHistory, () => clearHistory($), true))
   out.push(T(Text, ' '))
+  out.push(row('badge', check(cfg.badge) + L.cfgBadge(badgeText()), async () => {
+    await saveConfig($, { badge: !cfg.badge })
+    showBadge($)
+  }))
+  out.push(T(Text, trunc('    ' + L.cfgBadgeNote, width), { dimColor: true }))
+  out.push(T(Text, ' '))
   out.push(row('language', `${L.language}: ${langPref === 'auto' ? L.langAuto : langPref.toUpperCase()}`,
     () => saveLanguage($, LANGS[(LANGS.indexOf(langPref) + 1) % LANGS.length])))
   return out
@@ -1355,6 +1410,14 @@ export function register(on) {
       cfg = { ...DEFAULTS }
     }
     cwd = e.cwd ?? cwd
+    let sessionId = null
+    try {
+      sessionId = await $.session.id()
+    } catch {
+      // No session id here: the radar's own id still tells this session apart
+    }
+    badge = makeBadge(sessionId ?? S.id, baseName(cwd))
+    showBadge($)
     if (cfg.insights) await loadInsights($)
     await $.command.register({ name: 'radar', description: L.cmdRadar, immediate: true })
     await $.command.register({ name: 'radar-export', description: L.cmdExport, immediate: true })
@@ -1424,7 +1487,7 @@ export function register(on) {
     if (arg === 'stop') return { text: (await stopWeb($)) ? L.webStopped : L.webIdle }
     if (arg && arg !== 'open') return { text: L.webUsage }
     const url = await openWeb($)
-    return { text: url ? L.webOpened(url) : L.webFailed }
+    return { text: url ? L.webOpened(url, badgeText()) : L.webFailed }
   })
 
   on('ui.close', async ($, e, next) => {
@@ -1663,9 +1726,10 @@ export function register(on) {
       key: 'status',
       flexDirection: 'row',
       children: [
+        T(Text, badgeText() + ' ', { color: badge.color, bold: true }),
         T(Text, trunc(`⏱ ${fmtDur(Date.now() - S.startedAt)} · ${plural(S.turns.length, L.turn, L.turns)} · ` +
           `${t.calls} ${L.statusTools} · ${t.mcp} ${L.statusMcp} · ${t.web} ${L.statusWeb} · ` +
-          `${t.agents} ${L.statusAgents} · ${t.api} ${L.statusApi}`, width - 14), { dimColor: true }),
+          `${t.agents} ${L.statusAgents} · ${t.api} ${L.statusApi}`, width - 21), { dimColor: true }),
         ...(fails ? [T(Text, ` · ${plural(fails, L.fail, L.fails)}`, { color: 'red' })] : []),
       ],
     })

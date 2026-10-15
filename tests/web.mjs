@@ -17,6 +17,8 @@ import { register } from '../hooks/register.js'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SERVER = path.join(ROOT, 'web', 'server.mjs')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+// A Windows working directory, with its trailing separator
+const WIN_CWD = ['C:', 'work', 'my-app', ''].join(String.fromCharCode(92))
 
 const hooks = []
 register((name, a, b) => hooks.push({ name, matcher: b ? a : null, fn: b ?? a }))
@@ -62,6 +64,7 @@ function spawnStream({ argv, cwd, env }) {
 
 const opened = []
 const toasts = []
+const statuses = []
 const timers = []
 let spawnImpl = spawnStream
 const $ = {
@@ -70,6 +73,7 @@ const $ = {
     invalidate() {},
     resolve: () => ({ Box: (p) => ({ type: 'Box', ...p }), Text: (p) => ({ type: 'Text', ...p }), Button: (p) => ({ type: 'Button', ...p }), Link: (p) => ({ type: 'Link', ...p }) }),
     toast: (m) => toasts.push(m),
+    status: (text) => statuses.push(text),
     open: async () => ({ isPlaced: true }),
     close: async () => {},
   },
@@ -86,7 +90,11 @@ const $ = {
       return { cancel: () => clearTimeout(id) }
     },
   },
-  session: { usage: async () => ({ context: { tokens: 50000, window: 200000, percent: 25 }, cost: { usd: 0.12 }, rateLimits: [] }) },
+  session: {
+    id: async () => 'b1f4c2d0-session-under-test',
+    model: async () => 'claude-sonnet-5-5',
+    usage: async () => ({ context: { tokens: 50000, window: 200000, percent: 25 }, cost: { usd: 0.12 }, rateLimits: [] }),
+  },
   env: { get: async () => process.env.OS },
   process: {
     spawn: (req) => spawnImpl(req),
@@ -142,7 +150,8 @@ const exited = (child) => child.exitCode !== null || child.signalCode !== null
 // The mod: /radar-web starts the server, sends what it collected, /radar-web stop ends it
 // ---------------------------------------------------------------------------
 
-await fire('session.start', {})
+await fire('session.start', { cwd: WIN_CWD })
+assert.equal(statuses.at(-1), undefined, 'no badge under the prompt until the browser view runs')
 await fire('turn.start', { turnId: 't1', text: 'check the web view' })
 await fire('tool.call', { tool: 'Bash', command: 'npm test' }, async () => ({}))
 await fire('tool.call', { tool: 'mcp__github__search_issues', query: 'radar' }, async () => ({ isError: true }))
@@ -172,6 +181,22 @@ assert.equal(state.usage.context.percent, 25)
 assert.equal(state.usage.costUsd, 0.12)
 assert.equal(state.lang, 'en')
 assert.ok(typeof state.now === 'number')
+
+// The session's badge: the same code in the reply, under the prompt, in the pane and on the page
+const badge = state.session
+assert.match(badge.code, /^[2-9A-HJKMNP-TV-Z]{4}$/)
+assert.ok(['●', '■', '▲', '★'].includes(badge.mark))
+assert.ok(['cyan', 'magenta', 'blue', 'green'].includes(badge.color))
+assert.equal(badge.project, 'my-app', 'the folder name, from a Windows path')
+assert.equal(badge.cwd, WIN_CWD)
+assert.equal(badge.model, 'sonnet-5-5')
+assert.ok(reply.text.includes(`${badge.mark} ${badge.code}`), 'the reply names the badge')
+assert.equal(statuses.at(-1), `${badge.mark} radar ${badge.code}`, 'the badge shows under the prompt while the view runs')
+const flatText = (n) => (n == null ? '' : typeof n === 'string' ? n : n.type === 'Text' ? n.children.join('') : (n.children ?? []).map(flatText).join(' '))
+assert.ok(flatText(findKey(await drawPane(), 'status')).startsWith(`${badge.mark} ${badge.code}`), 'the pane leads with the badge')
+// The same session id always gives the same badge; another session gets another
+await fire('session.start', { cwd: WIN_CWD })
+assert.equal(statuses.at(-1), `${badge.mark} radar ${badge.code}`, 'stable across a reload')
 assert.deepEqual(Object.keys(state).slice(0, 8), ['tool', 'generator', 'exportedAt', 'startedAt', 'totals', 'turns', 'agents', 'spans'])
 
 // A new call reaches the page within a push or two
@@ -212,6 +237,7 @@ assert.equal(children.length, 1)
 // Stop: the child exits, nothing is left listening, the pane drops the link
 const stopped = await fire('command.run', { command: 'radar-web', args: 'stop' })
 assert.match(stopped.text, /stopped/)
+assert.equal(statuses.at(-1), undefined, 'the badge leaves the prompt with the view')
 assert.ok(await waitFor(() => exited(children[0])), 'the server process exited')
 await assert.rejects(raw(port, { headers: H }), 'nothing listens on the port any more')
 assert.equal(findType(await drawPane(), 'Link'), undefined)

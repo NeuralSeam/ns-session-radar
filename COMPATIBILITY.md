@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.5.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.4.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.3.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-10 |
 | 0.2.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-06 |
@@ -36,6 +37,13 @@ hooks module (with `hooks/insights.js`) and the `radar-review` skill, with every
 pane, the notifications and the skill's output were not seen in an interactive session for this
 row.
 
+**What the 0.5.0 row adds:** the same run, plus the session badge: the same code in the
+`/radar-web` reply, under the prompt while the view runs and gone after `stop`, at the head of the
+pane's status row, stable across a reload, the setting that keeps it under the prompt, and the
+project folder taken from a Windows path. The page's badge, tab title and icon, live and ended, were
+checked in headless Chrome against a sample snapshot. `claude plugin validate . --strict` passed on
+Claude Code 2.1.300.
+
 **What it does not cover:** a real Claude Code session. Until a row with a `claude --version` is
 here, treat the drawing and the subagent links as unverified on your build. The checks in
 [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) are what fills in a row.
@@ -59,6 +67,7 @@ here, treat the drawing and the subagent links as unverified on your build. The 
 | `Pane` and `Spinner` render sites | Claude Code 2.1.287 |
 | `$.session.usage()` returns context, cost and rate limits | Claude Code 2.1.287 |
 | `$.process.spawn`, `$.process.run` and `$.http.fetch`, for the browser view only | Claude Code 2.1.300 (the build it was run on) |
+| `$.ui.status`, `$.session.id` and `$.session.model`, for the session badge | Claude Code 2.1.300 (the build it was validated on) |
 | `$.ui.notify`, `$.fs.read` and `$.store.delete`, for notifications and insights | Claude Code 2.1.300 (the build it was validated and loaded on) |
 
 The browser view also needs Node.js 20 or later on the `PATH`. Without it, `/radar-web` says so and
