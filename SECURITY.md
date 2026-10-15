@@ -36,7 +36,7 @@ configuration directory):
 | Key | What it holds | When |
 | --- | --- | --- |
 | `language` | `auto`, `pt` or `en` | Always, once you pick one |
-| `config` | The settings of the Config tab: six on/off or number values | Once you change one |
+| `config` | The settings of the Config tab: seven on/off or number values | Once you change one |
 | `history` | Per project folder, for each of the last 30 sessions in at most 20 projects: counts of activities, calls, failures and denials; tokens and cache; the size of the first request; the highest context use; time and failures per tool name; the names of the MCP servers called; and, for each failing command, its tool and **first two words** (for example `Bash npm test`). Also the time and rule of each change you marked as applied | Only while insights are on. `Delete the stored history` in Config removes the key |
 
 The history holds no prompt text, no tool argument beyond those first two words of a failing
@@ -56,6 +56,9 @@ same list from the code, under `calls:`.
 | `$.command.register` | Adds `/radar`, `/radar-export`, `/radar-lang`, `/radar-web` and `/radar-config` |
 | `$.ui.open`, `$.ui.close`, `$.ui.resolve`, `$.ui.invalidate` | Opens, draws and redraws the pane and the spinner suffix |
 | `$.ui.toast` | Says where an export went, and that the history was deleted |
+| `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
+| `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |
+| `$.session.model` | While the browser view runs, to name the model beside the badge on the page |
 | `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument |
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
 | `$.session.usage` | Reads context, cost and plan limits for the API tab; with insights on, also when an activity ends, to keep the highest context use |
@@ -87,7 +90,8 @@ so is any request carrying another site's `Origin`. The page is static, served w
 `Content-Security-Policy` that allows nothing but itself, and draws every value as text.
 
 It keeps the last snapshot in memory and nothing on disk. The snapshot holds what
-[What it keeps](#what-it-keeps) lists, the same as the export file. Anyone who has the URL, on this
+[What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, the
+folder it runs in and its model, so the page can tell parallel sessions apart. Anyone who has the URL, on this
 machine, can read it while the server runs; treat the URL like the export file. The server stops on
 `/radar-web stop`, when the mod is unloaded or Claude Code exits, and on its own after 30 seconds
 without a snapshot from the mod.

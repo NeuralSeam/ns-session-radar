@@ -65,6 +65,8 @@
         ttl: 'Cache TTL', cacheAt: 'Cache last used', openAgent: 'Open subagent', inTimeline: 'Show in timeline', agentCalls: 'Calls in memory',
       },
       hint: '1–5 switch views · / search · Esc close',
+      badgeTip: (code, cwd) => `Session ${code}${cwd ? ` in ${cwd}` : ''}. The same badge shows under the prompt of its terminal while this view is open.`,
+      endedTitle: 'ended',
       credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
     },
     pt: {
@@ -123,6 +125,8 @@
         ttl: 'TTL do cache', cacheAt: 'Último uso do cache', openAgent: 'Abrir subagente', inTimeline: 'Ver no tempo', agentCalls: 'Chamadas na memória',
       },
       hint: '1–5 trocam a visão · / busca · Esc fecha',
+      badgeTip: (code, cwd) => `Sessão ${code}${cwd ? ` em ${cwd}` : ''}. O mesmo crachá aparece abaixo do prompt do terminal dela enquanto esta visão está aberta.`,
+      endedTitle: 'encerrada',
       credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
     },
   }
@@ -966,7 +970,49 @@
   // Chrome: header, navigation, toolbar
   // ---------------------------------------------------------------------------
 
+  // The session's badge, as its terminal shows it: on the header, in the tab's title and as its icon
+  const BADGE_HEX = { cyan: '#3fb8d0', magenta: '#d468b8', blue: '#5b8ff9', green: '#46b383' }
+  const BADGE_SHAPES = {
+    '●': '<circle cx="16" cy="16" r="13"/>',
+    '■': '<rect x="4" y="4" width="24" height="24" rx="3"/>',
+    '▲': '<polygon points="16,3 30,28 2,28"/>',
+    '★': '<polygon points="16,2 20.2,11.6 30.6,12.4 22.6,19.2 25.2,29.4 16,24 6.8,29.4 9.4,19.2 1.4,12.4 11.8,11.6"/>',
+  }
+  let iconKey = ''
+  function renderIdentity() {
+    const b = data?.session
+    const el = $('badge')
+    if (!b || !BADGE_SHAPES[b.mark]) {
+      el.hidden = true
+      document.title = 'Session Radar'
+      return
+    }
+    const ended = conn === 'ended' || conn === 'unauthorized'
+    const color = BADGE_HEX[b.color] ? b.color : 'blue'
+    el.hidden = false
+    el.className = `badge b-${color}${ended ? ' ended' : ''}`
+    el.title = T.badgeTip(b.code, b.cwd)
+    el.replaceChildren(
+      h('span', { class: 'badge-mark' }, b.mark),
+      h('span', { class: 'badge-code' }, b.code),
+      b.project ? h('span', { class: 'badge-project' }, b.project) : null,
+      b.model ? h('span', { class: 'badge-model' }, b.model) : null,
+    )
+    $('top').className = `top b-${color}${ended ? ' ended' : ''}`
+    document.title = ended
+      ? `✕ ${b.code} · ${T.endedTitle} · Session Radar`
+      : `${b.mark} ${b.code}${b.project ? ` · ${b.project}` : ''} · Session Radar`
+    const key = `${b.mark}${color}${ended}`
+    if (key !== iconKey) {
+      iconKey = key
+      const fill = ended ? '#687081' : BADGE_HEX[color]
+      const svg = `<svg xmlns="${SVG}" viewBox="0 0 32 32" fill="${fill}">${BADGE_SHAPES[b.mark]}</svg>`
+      $('favicon').href = `data:image/svg+xml,${encodeURIComponent(svg)}`
+    }
+  }
+
   function renderHeader() {
+    renderIdentity()
     const c = $('conn')
     c.className = `conn ${conn === 'live' ? 'live' : conn === 'stale' || conn === 'reconnecting' ? 'stale' : conn === 'connecting' ? '' : 'down'}`
     $('conn-text').textContent = T.conn[conn]

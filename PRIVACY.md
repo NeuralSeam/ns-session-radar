@@ -2,8 +2,8 @@
 
 **Session Radar collects nothing and sends nothing off your machine.** It has no telemetry, no
 account, and calls no model. Its only network traffic is to itself: when you open the browser view
-(`/radar-web` or `w`), the mod sends what it recorded to a server it starts on `127.0.0.1`, which
-your browser then reads from.
+(`/radar-web` or `w`), the mod sends what it recorded, with the session's folder, model and badge,
+to a server it starts on `127.0.0.1`, which your browser then reads from.
 
 What it records stays in memory, inside the Claude Code process, for the current conversation, and
 is gone when that conversation ends. [SECURITY.md](./SECURITY.md#what-it-keeps) says exactly what

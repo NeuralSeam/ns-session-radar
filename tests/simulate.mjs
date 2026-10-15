@@ -20,6 +20,7 @@ const el = (type) => (props) => ({ type, ...props })
 const toasts = []
 const writes = []
 const notes = []
+const statuses = []
 const stored = new Map()
 const commands = []
 let tick = () => {}
@@ -28,6 +29,7 @@ const $ = {
     invalidate() {},
     resolve: () => ({ Box: el('Box'), Text: el('Text'), Button: el('Button') }),
     toast: (m) => toasts.push(m),
+    status: (text) => statuses.push(text),
     notify: async (text, options) => {
       notes.push({ text, ...options })
       return { isSent: true, channel: 'terminal_bell' }
@@ -44,6 +46,7 @@ const $ = {
   },
   clock: { every: (_ms, fn) => (tick = fn) },
   session: {
+    id: async () => 'sim-session-1',
     usage: async () => ({ context: { tokens: 84000, window: 200000, percent: 42 }, cost: 0.42, rateLimits: [] }),
   },
   fs: {
@@ -315,6 +318,19 @@ text = flat(await drawPane())
 assert.match(text, /History: 1 earlier session of this project/)
 assert.match(text, /Denials: /)
 if (PRINT) console.log(`──── insights, next session\n${text}\n`)
+
+// The badge: off the prompt by default, there when the setting is on, gone when it is off again
+findKey(await drawPane(), 'tab-config').onPress()
+const code = /([●■▲★] [2-9A-Z]{4})/.exec(flat(findKey(await drawPane(), 'status')))?.[1]
+assert.ok(code, 'the pane status row leads with the badge')
+assert.ok(flat(await drawPane()).includes(`[ ] Always show this session's badge (${code})`))
+await press('cfg-badge')
+assert.equal(storedJson('config').badge, true)
+assert.equal(statuses.at(-1), code.replace(' ', ' radar '))
+await fire('session.start', { cwd: '/work/app' })
+assert.equal(statuses.at(-1), code.replace(' ', ' radar '), 'the same session keeps its badge')
+await press('cfg-badge')
+assert.equal(statuses.at(-1), undefined)
 
 // Deleting the history takes the key out of the store
 findKey(await drawPane(), 'tab-config').onPress()
