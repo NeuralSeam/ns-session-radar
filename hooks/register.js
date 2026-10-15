@@ -10,10 +10,13 @@
 //   ◆ subagents (the Agent/Task tool plus the agent.spawn event)
 //   ✦ requests to the model (turn.step), with tokens and cache
 //
-// Shown in a pane with five tabs (/radar), as a live summary beside the spinner, and, on request
+// Shown in a pane with seven tabs (/radar), as a live summary beside the spinner, and, on request
 // (/radar-web), as a page in the browser served from this machine's loopback by web/server.mjs.
 // Nothing leaves the machine: no remote network, no model calls. The only writes are /radar-export
-// and the language preference, kept in the mod's own store.
+// and, in the mod's own store, the language, the settings and, when insights are on, per-project
+// counts. Notifications, when turned on, go to the person's own notification channel.
+
+import { analyze, summarize as sessionRecord, upsertHistory, compareApplied, TTL_MS } from './insights.js'
 
 const PANE = 'session-radar'
 const MAX_SPANS = 500
@@ -21,10 +24,14 @@ const MAX_TURNS = 200
 const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 const LANGS = ['auto', 'pt', 'en']
-const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
 const WEB_START_MS = 10_000
+const AI_REVIEW = '/session-radar:radar-review'
+
+// Settings, kept in the store under `config`. Everything that notifies or keeps more data starts off.
+const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false }
+const CHOICES = { notifyDoneMin: [15, 30, 60, 120], notifyCacheLead: [30, 60, 120, 300] }
 
 // ---------------------------------------------------------------------------
 // Strings. The language is the one picked with /radar-lang or the `l` key; on `auto`, Brazilian
@@ -90,6 +97,83 @@ const STRINGS = {
     webIdle: 'The radar web view is not running.',
     webFailed: 'Could not start the radar web view. It needs Node.js 20 or later on the PATH (`node`).',
     webUsage: 'Use /radar-web to open it or /radar-web stop to end it.',
+    tabInsights: 'Insights', tabConfig: 'Config',
+    cmdConfig: 'Open the radar settings: notifications, insights, language',
+    notifyDone: (n, dur, calls, fails, until) => `#${n} done · ${dur} · ${calls} tools` +
+      (fails ? ` · ${plural(fails, 'failure', 'failures')}` : '') + (until ? ` · cache until ${until}` : ''),
+    notifyCache: (left, tok, assumed) => `Main session cache expires in ${left} · ~${tok} tok would be rewritten` +
+      (assumed ? ' (TTL assumed 5m)' : ''),
+    cfgTitle: 'Settings · Enter or click to change; kept for your next sessions',
+    cfgNotifyDone: 'Notify when an activity ends',
+    cfgNotifyDoneMin: (s) => `only if it took at least ${fmtDur(s * 1000)}`,
+    cfgNotifyCache: 'Warn before the main session cache expires',
+    cfgNotifyCacheLead: (s) => `this long before: ${fmtDur(s * 1000)}`,
+    cfgInsights: 'Insights, with per-project history',
+    cfgAiHint: `Suggest the AI review (${AI_REVIEW})`,
+    cfgClearHistory: 'Delete the stored history',
+    cfgHistoryCleared: 'History deleted.',
+    cfgNotifyNote: 'Notifications use your Claude Code notification channel and never include a prompt.',
+    cfgInsightsNote: 'History keeps counts per project between sessions: no prompts, no arguments.',
+    insightsOff: 'Insights are off. Turn them on in Config (7): they read this session and keep per-project counts.',
+    noFindings: 'Nothing to suggest for this session yet.',
+    historyLine: (n) => `History: ${plural(n, 'earlier session', 'earlier sessions')} of this project`,
+    markApplied: 'mark applied', markedApplied: 'applied ✓',
+    moreInExport: (n) => `… ${n} more: the export (e) has them all`,
+    trends: 'Since the changes you marked as applied',
+    trendLine: (name, before, after, nb, na) => `${name}: ${before} → ${after ?? '…'} (${nb} → ${na} sessions)`,
+    aiHint: `AI review: e to export, then ${AI_REVIEW} (uses this session's tokens)`,
+    unit: { tokTurn: 'tok/turn', countTurn: '/turn', msTurn: '/turn', pct: '%', tok: 'tok' },
+    ins: {
+      'cache-expired': (d) => [
+        `Cache expired ${d.count}× after a pause (longest ${fmtDur(d.longestGap)}): ~${fmtTok(d.rewritten)} tok resent, ~${fmtTok(d.waste)} tok-eq lost`,
+        d.oneHourNet == null ? 'Turn on the cache warning in Config to resume before it expires'
+          : d.oneHourNet > 0 ? `A 1h cache TTL would have saved ~${fmtTok(d.oneHourNet)} tok-eq here; or turn on the cache warning`
+            : 'A 1h TTL would not pay off here (its writes cost 2×); turn on the cache warning instead',
+      ],
+      'cache-model-switch': (d) => [
+        `A model switch lost the cache ${d.count}× (${d.from} → ${d.to}): ~${fmtTok(d.rewritten)} tok resent`,
+        'Each model has its own cache: switch between activities, not in the middle of one',
+      ],
+      'denied-repeated': (d) => [
+        `${d.permission} denied ${d.count}×`,
+        d.safety === 'never' ? 'Claude keeps asking: add it to permissions.deny, or say in CLAUDE.md not to run it'
+          : d.safety === 'safe' ? 'Read-only: a candidate for permissions.allow in .claude/settings.json'
+            : 'If it is safe in this project, add it to permissions.allow; if not, to permissions.deny',
+      ],
+      'failing-repeated': (d) => [
+        `${trunc(d.key, 50)} failed ${d.count}×` + (d.sessions > 1 ? ` in ${d.sessions} sessions` : ''),
+        'Write the right command in CLAUDE.md, or check it with a hook',
+      ],
+      'repeated-command': (d) => [
+        `"${trunc(d.label, 40)}" ran ${d.count}× (${fmtDur(d.ms)})`,
+        'A script, skill or slash command could do it in one step',
+      ],
+      'web-repeat': (d) => [`${trunc(d.url, 50)} fetched ${d.count}×`, 'Keep a local copy of those docs, or use a docs MCP'],
+      'slow-tool': (d) => [`${d.name}: p95 ${fmtDur(d.p95)} over ${d.count} calls`, 'Run long commands in the background, or make them faster'],
+      'subagent-model': (d) => [
+        `Subagent "${trunc(d.label, 30)}" only read files, on ${d.model} (${fmtTok(d.tokIn)} tok)`,
+        'Read-only searches fit the Explore type or model: haiku',
+      ],
+      'context-pressure': (d) => [`Context reached ${d.pct}%`, 'Use /compact between activities, or trim what is always loaded'],
+      'fixed-overhead': (d) => [
+        `The first request already sends ${fmtTok(d.tokens)} tok` + (d.median ? ` (median ${fmtTok(d.median)})` : ''),
+        'System prompt, tools, MCP and CLAUDE.md are paid every session: review what is loaded',
+      ],
+      'mcp-unused': (d) => [
+        `MCP not used in ${d.sessions} sessions: ${d.servers.join(', ')}`,
+        'Their tool definitions still take context: disable them in .mcp.json',
+      ],
+      'mcp-unreliable': (d) => [
+        `MCP ${d.server}: ${d.fails} of ${d.count} calls failed, p95 ${fmtDur(d.p95)}`,
+        'Check the server, or disable it if it does not help',
+      ],
+    },
+    ruleName: {
+      'cache-expired': 'Cache expired', 'cache-model-switch': 'Model switch', 'denied-repeated': 'Denials',
+      'failing-repeated': 'Failures', 'repeated-command': 'Repeated command', 'web-repeat': 'Repeated fetch',
+      'slow-tool': 'Slow tool', 'subagent-model': 'Subagent model', 'context-pressure': 'Context',
+      'fixed-overhead': 'First request', 'mcp-unused': 'Unused MCP', 'mcp-unreliable': 'Unreliable MCP',
+    },
   },
   pt: {
     tabTimeline: 'Tempo', tabActivities: 'Atividades', tabAgents: 'Agentes', tabApi: 'API', tabSummary: 'Resumo',
@@ -149,6 +233,83 @@ const STRINGS = {
     webIdle: 'O radar no navegador não está rodando.',
     webFailed: 'Não foi possível iniciar o radar no navegador. Ele precisa do Node.js 20 ou mais novo no PATH (`node`).',
     webUsage: 'Use /radar-web para abrir ou /radar-web stop para encerrar.',
+    tabInsights: 'Insights', tabConfig: 'Config',
+    cmdConfig: 'Abre as configurações do radar: notificações, insights, idioma',
+    notifyDone: (n, dur, calls, fails, until) => `#${n} concluída · ${dur} · ${calls} ferramentas` +
+      (fails ? ` · ${plural(fails, 'falha', 'falhas')}` : '') + (until ? ` · cache até ${until}` : ''),
+    notifyCache: (left, tok, assumed) => `O cache da sessão principal expira em ${left} · ~${tok} tok seriam regravados` +
+      (assumed ? ' (TTL presumida 5m)' : ''),
+    cfgTitle: 'Configurações · Enter ou clique para mudar; valem para as próximas sessões',
+    cfgNotifyDone: 'Avisar quando uma atividade terminar',
+    cfgNotifyDoneMin: (s) => `só se levou pelo menos ${fmtDur(s * 1000)}`,
+    cfgNotifyCache: 'Avisar antes de o cache da sessão principal expirar',
+    cfgNotifyCacheLead: (s) => `com esta antecedência: ${fmtDur(s * 1000)}`,
+    cfgInsights: 'Insights, com histórico por projeto',
+    cfgAiHint: `Sugerir a análise com IA (${AI_REVIEW})`,
+    cfgClearHistory: 'Apagar o histórico guardado',
+    cfgHistoryCleared: 'Histórico apagado.',
+    cfgNotifyNote: 'As notificações usam o canal de notificação do Claude Code e nunca trazem um prompt.',
+    cfgInsightsNote: 'O histórico guarda contagens por projeto entre sessões: sem prompts, sem argumentos.',
+    insightsOff: 'Os insights estão desligados. Ligue em Config (7): eles leem esta sessão e guardam contagens por projeto.',
+    noFindings: 'Nada a sugerir para esta sessão por enquanto.',
+    historyLine: (n) => `Histórico: ${plural(n, 'sessão anterior', 'sessões anteriores')} deste projeto`,
+    markApplied: 'marcar aplicado', markedApplied: 'aplicado ✓',
+    moreInExport: (n) => `… mais ${n}: o export (e) traz todos`,
+    trends: 'Desde as mudanças marcadas como aplicadas',
+    trendLine: (name, before, after, nb, na) => `${name}: ${before} → ${after ?? '…'} (${nb} → ${na} sessões)`,
+    aiHint: `Análise com IA: e para exportar, depois ${AI_REVIEW} (usa tokens da sessão)`,
+    unit: { tokTurn: 'tok/turno', countTurn: '/turno', msTurn: '/turno', pct: '%', tok: 'tok' },
+    ins: {
+      'cache-expired': (d) => [
+        `O cache expirou ${d.count}× após uma pausa (maior ${fmtDur(d.longestGap)}): ~${fmtTok(d.rewritten)} tok reenviados, ~${fmtTok(d.waste)} tok-eq perdidos`,
+        d.oneHourNet == null ? 'Ligue o aviso de cache em Config para retomar antes de expirar'
+          : d.oneHourNet > 0 ? `Uma TTL de 1h teria economizado ~${fmtTok(d.oneHourNet)} tok-eq aqui; ou ligue o aviso de cache`
+            : 'Uma TTL de 1h não compensaria aqui (a gravação custa 2×); ligue o aviso de cache',
+      ],
+      'cache-model-switch': (d) => [
+        `Uma troca de modelo perdeu o cache ${d.count}× (${d.from} → ${d.to}): ~${fmtTok(d.rewritten)} tok reenviados`,
+        'Cada modelo tem o próprio cache: troque entre atividades, não no meio de uma',
+      ],
+      'denied-repeated': (d) => [
+        `${d.permission} negado ${d.count}×`,
+        d.safety === 'never' ? 'O Claude insiste: ponha em permissions.deny, ou diga no CLAUDE.md para não rodar'
+          : d.safety === 'safe' ? 'Só leitura: candidato a permissions.allow em .claude/settings.json'
+            : 'Se for seguro neste projeto, ponha em permissions.allow; se não, em permissions.deny',
+      ],
+      'failing-repeated': (d) => [
+        `${trunc(d.key, 50)} falhou ${d.count}×` + (d.sessions > 1 ? ` em ${d.sessions} sessões` : ''),
+        'Escreva o comando certo no CLAUDE.md, ou confira com um hook',
+      ],
+      'repeated-command': (d) => [
+        `"${trunc(d.label, 40)}" rodou ${d.count}× (${fmtDur(d.ms)})`,
+        'Um script, skill ou slash command faria isso num passo',
+      ],
+      'web-repeat': (d) => [`${trunc(d.url, 50)} buscado ${d.count}×`, 'Guarde uma cópia local dessa documentação, ou use um MCP de docs'],
+      'slow-tool': (d) => [`${d.name}: p95 de ${fmtDur(d.p95)} em ${d.count} chamadas`, 'Rode comandos longos em background, ou deixe-os mais rápidos'],
+      'subagent-model': (d) => [
+        `O subagente "${trunc(d.label, 30)}" só leu arquivos, em ${d.model} (${fmtTok(d.tokIn)} tok)`,
+        'Buscas só de leitura cabem no tipo Explore ou em model: haiku',
+      ],
+      'context-pressure': (d) => [`O contexto chegou a ${d.pct}%`, 'Use /compact entre atividades, ou enxugue o que sempre é carregado'],
+      'fixed-overhead': (d) => [
+        `A primeira requisição já envia ${fmtTok(d.tokens)} tok` + (d.median ? ` (mediana ${fmtTok(d.median)})` : ''),
+        'System prompt, ferramentas, MCP e CLAUDE.md são pagos em toda sessão: revise o que é carregado',
+      ],
+      'mcp-unused': (d) => [
+        `MCP sem uso em ${d.sessions} sessões: ${d.servers.join(', ')}`,
+        'As definições das ferramentas ainda ocupam contexto: desative-os no .mcp.json',
+      ],
+      'mcp-unreliable': (d) => [
+        `MCP ${d.server}: ${d.fails} de ${d.count} chamadas falharam, p95 de ${fmtDur(d.p95)}`,
+        'Verifique o servidor, ou desative-o se não estiver ajudando',
+      ],
+    },
+    ruleName: {
+      'cache-expired': 'Cache expirado', 'cache-model-switch': 'Troca de modelo', 'denied-repeated': 'Negações',
+      'failing-repeated': 'Falhas', 'repeated-command': 'Comando repetido', 'web-repeat': 'Busca repetida',
+      'slow-tool': 'Ferramenta lenta', 'subagent-model': 'Modelo do subagente', 'context-pressure': 'Contexto',
+      'fixed-overhead': 'Primeira requisição', 'mcp-unused': 'MCP sem uso', 'mcp-unreliable': 'MCP instável',
+    },
   },
 }
 
@@ -186,6 +347,28 @@ async function saveLanguage($, pref) {
   }
 }
 
+let cfg = { ...DEFAULTS }
+
+// Only the known keys, each of its own type: a hand-edited store cannot turn on what it should not
+function readConfig(saved) {
+  const out = { ...DEFAULTS }
+  for (const [k, v] of Object.entries(DEFAULTS)) {
+    const got = saved?.[k]
+    if (typeof v === 'boolean' && typeof got === 'boolean') out[k] = got
+    if (typeof v === 'number' && CHOICES[k]?.includes(got)) out[k] = got
+  }
+  return out
+}
+
+async function saveConfig($, patch) {
+  cfg = { ...cfg, ...patch }
+  try {
+    await $.store.set('config', cfg)
+  } catch {
+    // The store is unavailable here; the settings still hold for this session
+  }
+}
+
 const KIND = {
   tool: { icon: '⚙', color: 'cyan', nameKey: 'kindTool' },
   mcp: { icon: '⇄', color: 'magenta', nameKey: 'kindMcp' },
@@ -200,6 +383,8 @@ const TABS = [
   ['agents', 'tabAgents', '3'],
   ['api', 'tabApi', '4'],
   ['summary', 'tabSummary', '5'],
+  ['insights', 'tabInsights', '6'],
+  ['config', 'tabConfig', '7'],
 ]
 
 // ---------------------------------------------------------------------------
@@ -213,10 +398,19 @@ let showHelp = false
 // null follows the newest activity; 'none' keeps every activity closed
 let openTurn = null
 let seq = 0
+// The project the session runs in, which names its history; the history as stored; the MCP servers
+// the project's .mcp.json lists. The last two are read only while insights are on.
+let cwd = null
+let hist = null
+let mcpConfigured = []
+let histWrite = Promise.resolve()
 
 function fresh() {
+  const startedAt = Date.now()
   return {
-    startedAt: Date.now(),
+    id: `${startedAt.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    startedAt,
+    maxCtxPct: 0,
     spans: [],
     agents: new Map([['main', newAgent('main', { type: 'main', label: 'main', parent: null })]]),
     turns: [],
@@ -389,7 +583,7 @@ function liveSuffix() {
 }
 
 function snapshot() {
-  return {
+  const out = {
     tool: 'session-radar',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
@@ -398,6 +592,132 @@ function snapshot() {
     turns: S.turns,
     agents: [...S.agents.values()],
     spans: S.spans,
+  }
+  // Added after the existing fields, and only when the person turned insights on
+  if (cfg.insights) {
+    out.insights = {
+      findings: findings(),
+      maxContextPercent: Math.round(S.maxCtxPct),
+      mcpConfigured,
+      history: pastSessions(),
+      applied: compareApplied(projectSessions(), appliedMarks()),
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Notifications. Numbers only: never a prompt or a tool's argument, since a notification can show
+// on a locked screen.
+// ---------------------------------------------------------------------------
+
+function notify($, text) {
+  try {
+    Promise.resolve($.ui.notify(text, { title: 'Session Radar' })).catch(() => {})
+  } catch {
+    // No notification channel here
+  }
+}
+
+// How long the loop's cache has left. An unknown TTL counts as 5 minutes, the shorter of the two.
+function cacheRemaining(a, now = Date.now()) {
+  if (!a?.cacheAt) return null
+  return TTL_MS[a.ttl === '1h' ? '1h' : '5m'] - (now - a.cacheAt)
+}
+
+const clockTime = (ms) => {
+  const d = new Date(ms)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function notifyTurnDone($, turn) {
+  if (!cfg.notifyDone || !turn?.end || turn.end - turn.start < cfg.notifyDoneMin * 1000) return
+  const main = S.agents.get('main')
+  const left = main?.ttl ? cacheRemaining(main) : null
+  const until = left > 0 ? clockTime(Date.now() + left) : null
+  notify($, L.notifyDone(turn.n, fmtDur(turn.end - turn.start), turn.calls, turn.fails, until))
+}
+
+// Once per cache entry, while nothing runs: a running activity keeps the cache alive by itself
+function checkCache($) {
+  if (!cfg.notifyCache) return
+  const a = S.agents.get('main')
+  if (!a?.cacheAt || a.cacheWarned === a.cacheAt || S.turns.some((t) => !t.end)) return
+  const left = cacheRemaining(a)
+  if (left <= 0 || left > cfg.notifyCacheLead * 1000) return
+  a.cacheWarned = a.cacheAt
+  notify($, L.notifyCache(fmtDur(Math.round(left / 1000) * 1000), fmtTok(a.cachePrompt), !a.ttl))
+}
+
+// ---------------------------------------------------------------------------
+// Insights and the per-project history, both only while insights are on
+// ---------------------------------------------------------------------------
+
+const sessionView = () => ({ ...S, agents: [...S.agents.values()] })
+const projectSessions = () => (cwd ? hist?.projects?.[cwd]?.sessions ?? [] : [])
+const pastSessions = () => projectSessions().filter((r) => r.id !== S.id)
+const appliedMarks = () => (cwd ? hist?.applied?.[cwd] ?? [] : [])
+const findings = () => analyze(sessionView(), pastSessions(), mcpConfigured)
+
+async function loadInsights($) {
+  try {
+    const saved = await $.store.get('history')
+    hist = saved && typeof saved === 'object' ? saved : null
+  } catch {
+    hist = null
+  }
+  try {
+    const json = JSON.parse(await $.fs.read('.mcp.json'))
+    mcpConfigured = Object.keys(json?.mcpServers ?? {})
+  } catch {
+    // No .mcp.json in this project, or not JSON
+    mcpConfigured = []
+  }
+}
+
+function writeHistory($) {
+  const value = hist
+  histWrite = histWrite.then(() => $.store.set('history', value)).catch(() => {})
+  return histWrite
+}
+
+// Puts this session's counts into the history; a session with nothing in it is left out
+function saveSession($) {
+  if (!cfg.insights || !cwd || (!S.turns.length && !S.totals.calls)) return histWrite
+  hist = upsertHistory(hist, cwd, sessionRecord(sessionView(), S.id))
+  return writeHistory($)
+}
+
+// A second press takes the mark off
+function toggleApplied($, rule) {
+  if (!cwd) return
+  const marks = appliedMarks()
+  const has = marks.some((m) => m.rule === rule)
+  hist = {
+    projects: hist?.projects ?? {},
+    applied: { ...(hist?.applied ?? {}), [cwd]: has ? marks.filter((m) => m.rule !== rule) : [...marks, { rule, at: Date.now() }] },
+  }
+  writeHistory($)
+}
+
+async function clearHistory($) {
+  hist = null
+  try {
+    await histWrite
+    await $.store.delete('history')
+  } catch {
+    // The store is unavailable here
+  }
+  $.ui.toast(L.cfgHistoryCleared)
+}
+
+async function trackUsage($) {
+  try {
+    const u = await $.session.usage()
+    const pct = u?.context ? (u.context.percent ?? (u.context.tokens / u.context.window) * 100) || 0 : 0
+    S.maxCtxPct = Math.max(S.maxCtxPct, pct)
+  } catch {
+    // usage() is not available here
   }
 }
 
@@ -762,7 +1082,7 @@ function cacheLifeLines(ui, width) {
     let color
     if (a.ttl) {
       // A mixed write expires in two steps; the 5 minute part, the end of the conversation, goes first
-      const remaining = TTL_MS[a.ttl === '1h' ? '1h' : '5m'] - since
+      const remaining = cacheRemaining(a, now)
       parts.push(`TTL ${a.ttl === 'mixed' ? '5m+1h' : a.ttl}`, L.ago(fmtDur(since)),
         remaining > 0 ? L.expiresIn(fmtDur(remaining)) : L.expired(fmtDur(-remaining)))
       color = remaining <= 0 ? 'red' : remaining < 60_000 ? 'yellow' : 'green'
@@ -786,6 +1106,7 @@ async function apiBody(ui, $, width, maxRows) {
     const u = await $.session.usage()
     if (u?.context) {
       const pct = (u.context.percent ?? (u.context.tokens / u.context.window) * 100) || 0
+      S.maxCtxPct = Math.max(S.maxCtxPct, pct)
       const color = pct > 80 ? 'red' : pct > 60 ? 'yellow' : 'green'
       out.push(Box({
         key: 'ctx',
@@ -921,6 +1242,101 @@ function summaryBody(ui, width) {
   return out
 }
 
+const SEVERITY_MARK = { high: ['●', 'red'], medium: ['●', 'yellow'], low: ['○', undefined] }
+
+function fmtMetric(v, unit) {
+  if (v == null) return null
+  if (unit === 'tokTurn' || unit === 'tok') return `${fmtTok(Math.round(v))} ${L.unit[unit]}`
+  if (unit === 'msTurn') return `${fmtDur(Math.round(v))}${L.unit[unit]}`
+  if (unit === 'pct') return `${Math.round(v)}${L.unit[unit]}`
+  return `${v.toFixed(2)}${L.unit[unit]}`
+}
+
+// One finding is two lines: what was seen, with a button to mark the change as applied, and what to do
+function insightsBody(ui, $, width, maxRows) {
+  const { Box, Text, Button } = ui
+  if (!cfg.insights) return [T(Text, L.insightsOff, { dimColor: true })]
+
+  const out = []
+  const past = pastSessions().length
+  if (past) out.push(T(Text, trunc(L.historyLine(past), width), { dimColor: true }))
+
+  const trends = compareApplied(projectSessions(), appliedMarks())
+  const tail = (trends.length ? trends.length + 2 : 0) + (cfg.aiHint ? 2 : 0)
+  const list = findings()
+  if (!list.length) out.push(T(Text, L.noFindings, { dimColor: true }))
+
+  const marked = new Set(appliedMarks().map((m) => m.rule))
+  const fit = Math.max(1, Math.floor((maxRows - out.length - tail) / 2))
+  const btnW = Math.max(L.markApplied.length, L.markedApplied.length)
+  list.slice(0, fit).forEach((f, i) => {
+    const [title, hint] = L.ins[f.rule](f.data)
+    const [mark, color] = SEVERITY_MARK[f.severity]
+    out.push(Box({
+      key: 'f-' + i,
+      flexDirection: 'row',
+      children: [
+        T(Text, pad(`${mark} ${title}`, Math.max(10, width - btnW - 1)) + ' ', color ? { color } : {}),
+        Button({
+          key: 'apply-' + i,
+          label: marked.has(f.rule) ? L.markedApplied : L.markApplied,
+          plain: true,
+          dimColor: !marked.has(f.rule),
+          onPress: () => {
+            toggleApplied($, f.rule)
+            redraw($)
+          },
+        }),
+      ],
+    }))
+    out.push(T(Text, trunc('  ' + hint, width), { dimColor: true }))
+  })
+  if (list.length > fit) out.push(T(Text, L.moreInExport(list.length - fit), { dimColor: true }))
+
+  if (trends.length) {
+    out.push(T(Text, ' '), T(Text, L.trends, { bold: true }))
+    for (const t of trends) {
+      const line = L.trendLine(L.ruleName[t.rule], fmtMetric(t.before, t.unit) ?? '—', fmtMetric(t.after, t.unit), t.nBefore, t.nAfter)
+      const better = t.after != null && t.before != null && t.after < t.before
+      out.push(T(Text, trunc('  ' + line, width), better ? { color: 'green' } : { dimColor: true }))
+    }
+  }
+  if (cfg.aiHint) out.push(T(Text, ' '), T(Text, trunc(L.aiHint, width), { color: 'cyan' }))
+  return out
+}
+
+function configBody(ui, $, width) {
+  const { Text, Button } = ui
+  const check = (on) => (on ? '[x] ' : '[ ] ')
+  const next = (k) => CHOICES[k][(CHOICES[k].indexOf(cfg[k]) + 1) % CHOICES[k].length]
+  const row = (key, label, onPress, dim = false) =>
+    Button({ key: 'cfg-' + key, label: trunc(label, width), plain: true, dimColor: dim, onPress: async () => {
+      await onPress()
+      redraw($)
+    } })
+
+  const out = [T(Text, trunc(L.cfgTitle, width), { dimColor: true }), T(Text, ' ')]
+  out.push(row('notifyDone', check(cfg.notifyDone) + L.cfgNotifyDone, () => saveConfig($, { notifyDone: !cfg.notifyDone })))
+  out.push(row('notifyDoneMin', '    ' + L.cfgNotifyDoneMin(cfg.notifyDoneMin),
+    () => saveConfig($, { notifyDoneMin: next('notifyDoneMin') }), !cfg.notifyDone))
+  out.push(row('notifyCache', check(cfg.notifyCache) + L.cfgNotifyCache, () => saveConfig($, { notifyCache: !cfg.notifyCache })))
+  out.push(row('notifyCacheLead', '    ' + L.cfgNotifyCacheLead(cfg.notifyCacheLead),
+    () => saveConfig($, { notifyCacheLead: next('notifyCacheLead') }), !cfg.notifyCache))
+  out.push(T(Text, trunc('    ' + L.cfgNotifyNote, width), { dimColor: true }))
+  out.push(T(Text, ' '))
+  out.push(row('insights', check(cfg.insights) + L.cfgInsights, async () => {
+    await saveConfig($, { insights: !cfg.insights })
+    if (cfg.insights) await loadInsights($)
+  }))
+  out.push(row('aiHint', check(cfg.aiHint) + L.cfgAiHint, () => saveConfig($, { aiHint: !cfg.aiHint })))
+  out.push(T(Text, trunc('    ' + L.cfgInsightsNote, width), { dimColor: true }))
+  out.push(row('clearHistory', '    ' + L.cfgClearHistory, () => clearHistory($), true))
+  out.push(T(Text, ' '))
+  out.push(row('language', `${L.language}: ${langPref === 'auto' ? L.langAuto : langPref.toUpperCase()}`,
+    () => saveLanguage($, LANGS[(LANGS.indexOf(langPref) + 1) % LANGS.length])))
+  return out
+}
+
 // ---------------------------------------------------------------------------
 // Hooks
 // ---------------------------------------------------------------------------
@@ -933,19 +1349,31 @@ export function register(on) {
     } catch {
       // No store here: keep the system language
     }
+    try {
+      cfg = readConfig(await $.store.get('config'))
+    } catch {
+      cfg = { ...DEFAULTS }
+    }
+    cwd = e.cwd ?? cwd
+    if (cfg.insights) await loadInsights($)
     await $.command.register({ name: 'radar', description: L.cmdRadar, immediate: true })
     await $.command.register({ name: 'radar-export', description: L.cmdExport, immediate: true })
     await $.command.register({ name: 'radar-lang', description: L.cmdLang, argumentHint: 'pt | en | auto', immediate: true })
     await $.command.register({ name: 'radar-web', description: L.cmdWeb, argumentHint: 'stop', immediate: true })
-    // Keep the timers of running items moving, once a second, only when something is on screen
+    await $.command.register({ name: 'radar-config', description: L.cmdConfig, immediate: true })
+    // Keep the timers of running items moving, once a second, only when something is on screen;
+    // and warn before the cache expires, when the person asked for it
     $.clock.every(1000, () => {
+      checkCache($)
       if (paneOpen || S.spans.some((s) => !s.end)) $.ui.invalidate('ui.render')
     })
     return next(e)
   })
 
-  // /clear, /resume and /branch start a new conversation, so the radar starts over
+  // /clear, /resume and /branch start a new conversation, so the radar starts over. The session
+  // that ends goes into the history first, when insights are on.
   on('session.end', async ($, e, next) => {
+    await saveSession($)
     if (e.reason === 'clear' || e.reason === 'resume') {
       S = fresh()
       openTurn = null
@@ -962,6 +1390,16 @@ export function register(on) {
     }
     await $.ui.open({ id: PANE, title: 'Session Radar', focus: true, closeOnEscape: true, rows: 22, columns: 84 })
     paneOpen = true
+    return {}
+  })
+
+  on('command.run', { command: 'radar-config' }, async ($) => {
+    tab = 'config'
+    if (!paneOpen) {
+      await $.ui.open({ id: PANE, title: 'Session Radar', focus: true, closeOnEscape: true, rows: 22, columns: 84 })
+      paneOpen = true
+    }
+    redraw($)
     return {}
   })
 
@@ -1069,6 +1507,9 @@ export function register(on) {
         turn.reason = e.reason ?? (e.isAborted ? 'aborted' : 'answer')
         if (e.durationMs) turn.start = turn.end - e.durationMs
       }
+      notifyTurnDone($, turn)
+      // In the background, so the turn's completion is never held up
+      if (cfg.insights) trackUsage($).then(() => saveSession($))
     }
     redraw($)
     return next(e)
@@ -1145,7 +1586,8 @@ export function register(on) {
     const tabs = Box({
       key: 'tabs',
       flexDirection: 'row',
-      columnGap: 2,
+      // Seven tabs fit a narrow pane only a cell apart
+      columnGap: width >= 70 ? 2 : 1,
       children: TABS.map(([id, labelKey, hotkey]) => Button({
         key: 'tab-' + id,
         label: L[labelKey],
@@ -1235,6 +1677,8 @@ export function register(on) {
     else if (tab === 'activities') body = activitiesBody(ui, $, width, room)
     else if (tab === 'agents') body = agentsBody(ui, width)
     else if (tab === 'api') body = await apiBody(ui, $, width, room)
+    else if (tab === 'insights') body = insightsBody(ui, $, width, room)
+    else if (tab === 'config') body = configBody(ui, $, width)
     else body = summaryBody(ui, width)
 
     const credit = T(Text, trunc(L.credit, width), { dimColor: true })

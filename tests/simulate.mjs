@@ -19,24 +19,42 @@ register((name, a, b) => hooks.push({ name, matcher: b ? a : null, fn: b ?? a })
 const el = (type) => (props) => ({ type, ...props })
 const toasts = []
 const writes = []
+const notes = []
 const stored = new Map()
 const commands = []
+let tick = () => {}
 const $ = {
   ui: {
     invalidate() {},
     resolve: () => ({ Box: el('Box'), Text: el('Text'), Button: el('Button') }),
     toast: (m) => toasts.push(m),
+    notify: async (text, options) => {
+      notes.push({ text, ...options })
+      return { isSent: true, channel: 'terminal_bell' }
+    },
     open: async () => ({ isPlaced: true }),
     close: async () => {},
   },
   command: { register: async (c) => commands.push(c) },
-  store: { get: async (k) => stored.get(k), set: async (k, v) => stored.set(k, v) },
-  clock: { every() {} },
+  // A round trip through JSON, as the real store does
+  store: {
+    get: async (k) => (stored.has(k) ? JSON.parse(stored.get(k)) : undefined),
+    set: async (k, v) => stored.set(k, JSON.stringify(v)),
+    delete: async (k) => stored.delete(k),
+  },
+  clock: { every: (_ms, fn) => (tick = fn) },
   session: {
     usage: async () => ({ context: { tokens: 84000, window: 200000, percent: 42 }, cost: 0.42, rateLimits: [] }),
   },
-  fs: { write: async (path, text) => writes.push({ path, text }) },
+  fs: {
+    write: async (path, text) => writes.push({ path, text }),
+    read: async (path) => {
+      if (path === '.mcp.json') return JSON.stringify({ mcpServers: { github: {}, jira: { env: { TOKEN: 'secret' } } } })
+      throw new Error('ENOENT')
+    },
+  },
 }
+const storedJson = (k) => (stored.has(k) ? JSON.parse(stored.get(k)) : undefined)
 
 const matches = (h, ev) => !h.matcher || Object.entries(h.matcher).every(([k, v]) => ev[k] === v)
 const find = (name, ev) => {
@@ -56,7 +74,7 @@ async function step(ev, usage) {
 }
 
 // A short session: one turn, a failing Bash, a subagent with its own calls, a web fetch
-await fire('session.start', {})
+await fire('session.start', { cwd: '/work/app' })
 await fire('turn.start', { turnId: 't1', text: 'fix the   login\nbug' })
 await step({ model: 'claude-sonnet-5-5' }, {
   input_tokens: 1200, output_tokens: 300, cache_read_input_tokens: 18000, cache_creation_input_tokens: 500,
@@ -83,11 +101,12 @@ const flat = (n) => {
   return (n.children ?? []).map(flat).join(sep)
 }
 const findKey = (n, key) => (n?.key === key ? n : (n?.children ?? []).map((c) => findKey(c, key)).find(Boolean))
+const TAB_IDS = ['timeline', 'activities', 'agents', 'api', 'summary', 'insights', 'config']
 const drawPane = (cols = 96) =>
   fire('ui.render', { component: 'Pane', requestId: 'session-radar', props: { bodyColumns: cols, scroll: { bodyRows: 24 } } }, async () => null)
 
 // Every tab draws, and nothing is wider than the pane
-for (const id of ['timeline', 'activities', 'agents', 'api', 'summary']) {
+for (const id of TAB_IDS) {
   findKey(await drawPane(), 'tab-' + id).onPress()
   for (const cols of [96, 60]) {
     const text = flat(await drawPane(cols))
@@ -129,7 +148,7 @@ assert.deepEqual(Object.keys(data), ['tool', 'generator', 'exportedAt', 'started
 // The credit sits on the last line of every tab, in the pane's language, and only in the pane
 const lastLine = async () => flat(await drawPane()).split('\n').at(-1)
 await fire('command.run', { command: 'radar-lang', args: 'en' })
-for (const id of ['timeline', 'activities', 'agents', 'api', 'summary']) {
+for (const id of TAB_IDS) {
   findKey(await drawPane(), 'tab-' + id).onPress()
   assert.equal(await lastLine(), 'Session Radar · by Neural Seam · neuralseam.cloud', `credit on ${id}`)
 }
@@ -176,18 +195,18 @@ assert.ok(commands.some((c) => c.name === 'radar-lang'))
 const bad = await fire('command.run', { command: 'radar-lang', args: 'klingon' })
 assert.match(bad.text, /\/radar-lang pt/)
 await fire('command.run', { command: 'radar-lang', args: 'pt-BR' })
-assert.equal(stored.get('language'), 'pt')
+assert.equal(storedJson('language'), 'pt')
 text = flat(await drawPane())
 assert.match(text, /Atividades/)
 assert.match(text, /Vida do cache/)
 await findKey(await drawPane(), 'lang').onPress()
-assert.equal(stored.get('language'), 'en')
+assert.equal(storedJson('language'), 'en')
 assert.match(flat(await drawPane()), /Activities/)
 await fire('command.run', { command: 'radar-lang', args: 'auto' })
-assert.equal(stored.get('language'), 'auto')
+assert.equal(storedJson('language'), 'auto')
 
 // A stored language applies when the session starts
-stored.set('language', 'pt')
+stored.set('language', JSON.stringify('pt'))
 await fire('session.start', {})
 assert.match(flat(await drawPane()), /Atividades/)
 await fire('command.run', { command: 'radar-lang', args: 'en' })
@@ -199,5 +218,109 @@ assert.equal(after.turns[0].calls, 6)
 assert.equal(after.turns[0].fails, 2)
 assert.equal(after.turns[1].calls, 1)
 assert.ok(after.spans.filter((s) => s.kind !== 'api').every((s) => s.turn), 'every call has its activity')
+
+// Settings: everything that notifies or keeps data starts off; /radar-config opens on the Config tab
+assert.ok(commands.some((c) => c.name === 'radar-config'))
+assert.equal(after.insights, undefined, 'no insights in the export while they are off')
+await fire('command.run', { command: 'radar-config' })
+text = flat(await drawPane())
+assert.match(text, /\[ \] Notify when an activity ends/)
+assert.match(text, /\[ \] Insights/)
+const press = async (key) => findKey(await drawPane(), key).onPress()
+
+// A long activity notifies, a short one does not, and neither says what the prompt was
+await fire('turn.start', { turnId: 't3', text: 'deploy with password hunter2' })
+await fire('turn.complete', { turnId: 't3', durationMs: 45_000 })
+assert.equal(notes.length, 0, 'nothing notifies while the setting is off')
+await press('cfg-notifyDone')
+assert.equal(storedJson('config').notifyDone, true)
+await fire('turn.start', { turnId: 't4', text: 'deploy with password hunter2' })
+await fire('turn.complete', { turnId: 't4', durationMs: 45_000 })
+await fire('turn.start', { turnId: 't5', text: 'quick one' })
+await fire('turn.complete', { turnId: 't5', durationMs: 2_000 })
+assert.equal(notes.length, 1, 'only the activity over the minimum notifies')
+assert.match(notes[0].text, /^#4 done · 45\.0s · 0 tools/)
+assert.ok(!notes.some((n) => /hunter2|deploy/.test(n.text)), 'a notification never carries the prompt')
+await press('cfg-notifyDoneMin')
+assert.equal(storedJson('config').notifyDoneMin, 60)
+await press('cfg-notifyDone')
+
+// The cache warning: once per cache entry, only while nothing runs, only when turned on
+const realNow = Date.now
+const at = (ms) => (Date.now = () => realNow() + ms)
+const lastCacheUse = 60 * 60_000 - 50_000 // the main loop's TTL is 1 hour: 50 seconds left
+at(lastCacheUse)
+tick()
+assert.equal(notes.length, 1, 'no cache warning while the setting is off')
+await press('cfg-notifyCache')
+await fire('turn.start', { turnId: 't6', text: 'still working' })
+tick()
+assert.equal(notes.length, 1, 'no cache warning while an activity runs')
+await fire('turn.complete', { turnId: 't6', durationMs: 10 })
+tick()
+assert.equal(notes.length, 2)
+assert.match(notes[1].text, /cache expires in 50\.0s/)
+assert.ok(!notes[1].text.includes('assumed'), 'the TTL was reported, so it is not assumed')
+tick()
+assert.equal(notes.length, 2, 'one warning per cache entry')
+Date.now = realNow
+await press('cfg-notifyCache')
+
+// Insights: off until turned on; then findings, the AI hint, and marks that are kept
+findKey(await drawPane(), 'tab-insights').onPress()
+assert.match(flat(await drawPane()), /Insights are off/)
+for (let i = 0; i < 2; i++) {
+  await fire('tool.call', { tool: 'Bash', command: 'git push --force origin main' }, async () => ({ deny: 'no' }))
+}
+findKey(await drawPane(), 'tab-config').onPress()
+await press('cfg-insights')
+await press('cfg-aiHint')
+assert.equal(storedJson('config').insights, true)
+findKey(await drawPane(), 'tab-insights').onPress()
+text = flat(await drawPane())
+assert.match(text, /Bash\(git push:\*\) denied 3×/)
+assert.match(text, /permissions\.deny/)
+assert.match(text, /\/session-radar:radar-review/)
+for (const cols of [96, 60]) {
+  const lines = flat(await drawPane(cols)).split('\n').filter((l) => !l.includes(': mark') && !/^\d: /.test(l))
+  assert.ok(lines.every((l) => [...l].length <= cols), `insights fit ${cols} columns`)
+}
+await press('apply-0')
+assert.equal(storedJson('history').applied['/work/app'][0].rule, 'denied-repeated')
+assert.match(flat(await drawPane()), /applied ✓/)
+if (PRINT) console.log(`──── insights\n${flat(await drawPane())}\n`)
+
+// The export adds the insights after the existing fields, and the history keeps counts, no text
+await fire('command.run', { command: 'radar-export' })
+const withInsights = JSON.parse(writes.at(-1).text)
+assert.deepEqual(Object.keys(withInsights).slice(0, 8), ['tool', 'generator', 'exportedAt', 'startedAt', 'totals', 'turns', 'agents', 'spans'])
+assert.equal(Object.keys(withInsights).at(-1), 'insights')
+assert.ok(withInsights.insights.findings.some((f) => f.rule === 'denied-repeated' && f.data.safety === 'never'))
+assert.deepEqual(withInsights.insights.mcpConfigured, ['github', 'jira'])
+assert.ok(!JSON.stringify(withInsights.insights).includes('secret'), 'only the server names are kept from .mcp.json')
+await fire('session.end', { reason: 'clear' })
+const history = storedJson('history')
+assert.equal(history.projects['/work/app'].sessions.length, 1)
+const kept = JSON.stringify(history)
+for (const words of ['login', 'hunter2', 'example.com', 'origin main']) {
+  assert.ok(!kept.includes(words), `the history does not keep "${words}"`)
+}
+assert.equal(history.projects['/work/app'].sessions[0].denied, 3)
+
+// A later session sees the earlier one, and the comparison waits for a session after the mark
+await fire('turn.start', { turnId: 'n1', text: 'next session' })
+await fire('turn.complete', { turnId: 'n1', durationMs: 10 })
+findKey(await drawPane(), 'tab-insights').onPress()
+text = flat(await drawPane())
+assert.match(text, /History: 1 earlier session of this project/)
+assert.match(text, /Denials: /)
+if (PRINT) console.log(`──── insights, next session\n${text}\n`)
+
+// Deleting the history takes the key out of the store
+findKey(await drawPane(), 'tab-config').onPress()
+await press('cfg-clearHistory')
+assert.equal(stored.has('history'), false)
+assert.ok(toasts.includes('History deleted.'))
+if (PRINT) console.log(`──── config\n${flat(await drawPane())}\n`)
 
 console.log('session-radar: all checks passed')
