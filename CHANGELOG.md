@@ -8,6 +8,21 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+### Added
+
+- **Browser view**: `/radar-web`, or `w` in the pane, opens the radar in your default browser. The
+  same five areas as the pane, with search, filters by kind, status, agent and time window, sortable
+  tables, charts of the prompt per request and of each activity's duration, and a detail panel for
+  every call and subagent. It is served by `web/server.mjs` (Node 20+, no dependencies) on
+  `127.0.0.1` only, behind random tokens, and fed by the same snapshot `/radar-export` writes.
+  `/radar-web stop` ends it; it also ends with Claude Code and on its own after 30 seconds without
+  data.
+
+### Security
+
+- The mod now calls `$.process.spawn`, `$.process.run`, `$.http.fetch` (loopback only) and
+  `$.env.get('OS')`, all of them only after `/radar-web` or `w`. SECURITY.md lists why.
+
 ## [0.3.0] - 2026-10-10
 
 ### Changed

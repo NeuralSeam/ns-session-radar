@@ -4,17 +4,18 @@ A mod for **Claude Code** that shows what the agent is doing while it does it: e
 every subagent, every MCP and web call, and every request to the model, with tokens, cache and
 time.
 
-It opens as a pane beside the transcript, and adds a one-line summary to the spinner even when the
-pane is closed:
+It opens as a pane beside the transcript, as a full page in your browser (`w` in the pane, or
+`/radar-web`), and adds a one-line summary to the spinner even when the pane is closed:
 
 ```
 Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 ```
 
 > **This is a mod, which means it is code.** It runs inside Claude Code with your permissions and
-> sees every prompt and tool call in the session. It sends nothing anywhere and calls no model; the
-> only file it writes is the one you ask for with `/radar-export`, and the only thing it keeps between
-> sessions is your language choice. [SECURITY.md](./SECURITY.md) lists
+> sees every prompt and tool call in the session. It sends nothing off your machine and calls no
+> model; the only file it writes is the one you ask for with `/radar-export`, and the only thing it
+> keeps between sessions is your language choice. The browser view, when you open it, is served
+> from `127.0.0.1` alone, behind a random token. [SECURITY.md](./SECURITY.md) lists
 > exactly what it calls, and `claude plugin validate .` prints the same list from the code.
 
 - **Portuguese:** [README.pt-BR.md](./README.pt-BR.md) (short guide; this file is canonical)
@@ -86,6 +87,7 @@ default, follows your system language. The choice is kept for your next sessions
 | --- | --- |
 | Claude Code **2.1.287 or later**, where mods exist | `claude --version` |
 | A terminal, or the Code tab of the Desktop app, to see the pane | see [Where it draws](#where-it-draws) |
+| For the browser view only: **Node.js 20 or later** on the `PATH` | `node --version` |
 
 ## Install
 
@@ -113,6 +115,7 @@ To try it without installing, clone this repository and start Claude Code with
 | `/radar` | Opens or closes the pane. Works while Claude is working. |
 | `/radar-export` | Writes everything recorded so far to `session-radar-<time>.json` in the current folder |
 | `/radar-lang pt\|en\|auto` | Sets the language and keeps it for your next sessions; with no argument, says which is set |
+| `/radar-web` | Opens the radar in your browser (see [Browser view](#browser-view)); `/radar-web stop` ends it |
 
 Inside the pane:
 
@@ -122,12 +125,42 @@ Inside the pane:
 | Tab, `↑` `↓`, Enter | In Activities, move between activities and open one |
 | `h` | In API, show or hide what each column means |
 | `l` | Cycle the language: auto, Portuguese, English |
+| `w` | Open the browser view, same as `/radar-web` |
 | `e` | Export, same as `/radar-export` |
 | `x` | Clear what has been recorded |
 | `Esc` | Close the pane |
 
 The radar starts over on `/clear`, `/resume` and `/branch`, because those start a different
 conversation. Nothing is kept between sessions unless you export it.
+
+## Browser view
+
+Claude Code cannot draw a web page inside the terminal: a mod draws with the terminal's own
+elements (boxes, text, buttons, links). So the richer view opens in your browser, fed by the same
+data the pane shows.
+
+Press `w` in the pane (`/radar` opens it with the focus), or run `/radar-web`. The mod starts a
+small server, `web/server.mjs` (Node, no dependencies), and your default browser opens on it. The
+reply and the pane also show the address as a link, for when no browser can be opened.
+
+The page has the same five areas, Timeline, Activities, Agents, API and Summary, plus a search box,
+filters by kind, status, agent and time window, sortable tables, charts of the prompt per request
+(cache read, cache written, new) and of each activity's duration, and a panel with every detail of
+a call or subagent. Keys: `1` to `5` switch area, `/` searches, `Esc` closes the panel.
+
+How it is kept local:
+
+- It listens on `127.0.0.1` only, on a port the system picks, and refuses any request whose `Host`
+  or `Origin` is not that address.
+- The data needs a random token that only the URL you were given carries; sending data needs a
+  second token only the mod knows. The page loads nothing from elsewhere (a `Content-Security-Policy`
+  of `'self'`).
+- It holds only the last snapshot, in memory. It ends with `/radar-web stop`, when Claude Code
+  exits or reloads the mod, and by itself 30 seconds after the mod stops sending.
+
+The `w` key works while the pane has the focus, not while you type at the prompt: a mod cannot take
+a plain letter from the prompt. If Node is missing, `/radar-web` says so and everything else keeps
+working.
 
 ## Where it draws
 
