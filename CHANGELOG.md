@@ -8,6 +8,14 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-15
+
+### Added
+
+- The release is named at the end of the credit line, in the pane
+  (`Session Radar · by Neural Seam · neuralseam.cloud · v0.5.1`) and in the browser view's footer, so
+  you can tell which version a session is running.
+
 ## [0.5.0] - 2026-10-15
 
 ### Added
@@ -127,7 +135,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...main
+[0.5.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NeuralSeam/ns-session-radar/compare/e6d2d1cb3c06110318a949bdae909489040e8d51...v0.3.0

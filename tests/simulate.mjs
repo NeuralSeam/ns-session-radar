@@ -10,7 +10,13 @@
 // session with `claude --plugin-dir .`, which is what COMPATIBILITY.md records.
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { register } from '../hooks/register.js'
+
+// The release the credit line names, the one the manifests declare
+const manifest = (name) => JSON.parse(readFileSync(new URL(`../.claude-plugin/${name}`, import.meta.url), 'utf8'))
+const VERSION = manifest('plugin.json').version
+assert.equal(manifest('marketplace.json').plugins[0].version, VERSION, 'plugin.json and marketplace.json agree')
 
 const PRINT = process.argv.includes('--print')
 const hooks = []
@@ -153,10 +159,10 @@ const lastLine = async () => flat(await drawPane()).split('\n').at(-1)
 await fire('command.run', { command: 'radar-lang', args: 'en' })
 for (const id of TAB_IDS) {
   findKey(await drawPane(), 'tab-' + id).onPress()
-  assert.equal(await lastLine(), 'Session Radar · by Neural Seam · neuralseam.cloud', `credit on ${id}`)
+  assert.equal(await lastLine(), `Session Radar · by Neural Seam · neuralseam.cloud · v${VERSION}`, `credit on ${id}`)
 }
 await fire('command.run', { command: 'radar-lang', args: 'pt' })
-assert.equal(await lastLine(), 'Session Radar · por Neural Seam · neuralseam.cloud')
+assert.equal(await lastLine(), `Session Radar · por Neural Seam · neuralseam.cloud · v${VERSION}`)
 findKey(await drawPane(), 'tab-timeline').onPress()
 assert.ok(!spin.props.suffix.includes('Neural Seam'), 'the spinner summary carries no credit')
 

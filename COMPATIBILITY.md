@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.5.1 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.5.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.4.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.3.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-10 |
