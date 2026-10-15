@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.4.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.3.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-10 |
 | 0.2.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-06 |
 | 0.1.0 | — (simulated, see below) | — | Linux, Node 22 | 2026-10-02 |
@@ -24,6 +25,16 @@ and `/radar-lang` and the `l` key switching and storing the language.
 
 **What the 0.3.0 row adds:** the same run, plus the credit line on the last row of every tab in
 both languages, and the `generator` field added to the export beside the existing ones.
+
+**What the 0.4.0 row adds:** the same run, plus `tests/web.mjs` for the browser view, the Config and Insights tabs at 96 and 60 columns,
+each setting stored, the activity notification over and under its minimum, the cache warning (once,
+not while an activity runs, not while off), the history keeping no prompt or argument and being
+deleted, the export's `insights` section after the existing fields, and `tests/insights.mjs`, a
+case that finds and one that does not for every rule. On Claude Code 2.1.300,
+`claude plugin validate . --strict` passed, and a headless `claude -p --plugin-dir .` loaded the
+hooks module (with `hooks/insights.js`) and the `radar-review` skill, with every hook settling. The
+pane, the notifications and the skill's output were not seen in an interactive session for this
+row.
 
 **What it does not cover:** a real Claude Code session. Until a row with a `claude --version` is
 here, treat the drawing and the subagent links as unverified on your build. The checks in
@@ -48,6 +59,7 @@ here, treat the drawing and the subagent links as unverified on your build. The 
 | `Pane` and `Spinner` render sites | Claude Code 2.1.287 |
 | `$.session.usage()` returns context, cost and rate limits | Claude Code 2.1.287 |
 | `$.process.spawn`, `$.process.run` and `$.http.fetch`, for the browser view only | Claude Code 2.1.300 (the build it was run on) |
+| `$.ui.notify`, `$.fs.read` and `$.store.delete`, for notifications and insights | Claude Code 2.1.300 (the build it was validated and loaded on) |
 
 The browser view also needs Node.js 20 or later on the `PATH`. Without it, `/radar-web` says so and
 the rest of the mod is unaffected.

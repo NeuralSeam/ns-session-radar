@@ -8,20 +8,46 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
 ### Added
 
 - **Browser view**: `/radar-web`, or `w` in the pane, opens the radar in your default browser. The
-  same five areas as the pane, with search, filters by kind, status, agent and time window, sortable
-  tables, charts of the prompt per request and of each activity's duration, and a detail panel for
+  same five areas as the pane's first five tabs, with search, filters by kind, status, agent and
+  time window, sortable tables, charts of the prompt per request and of each activity's duration, and a detail panel for
   every call and subagent. It is served by `web/server.mjs` (Node 20+, no dependencies) on
   `127.0.0.1` only, behind random tokens, and fed by the same snapshot `/radar-export` writes.
   `/radar-web stop` ends it; it also ends with Claude Code and on its own after 30 seconds without
   data.
+- **Config tab** (`7`) and **`/radar-config`**: settings kept for your next sessions. Everything
+  that notifies or keeps more data starts off.
+- **Notifications**, through Claude Code's own notification channel, each turned on in Config:
+  when an activity that took at least 15 s to 2 min ends, and once per cache entry, 30 s to 5 min
+  before the main session's cache expires while nothing runs. Numbers only, never the prompt.
+- **Insights tab** (`6`): fixed rules that suggest changes to how Claude Code is set up, with the
+  numbers behind each: cache lost after a pause or a model switch, repeated denials (an allow rule
+  for read-only commands, a deny rule for destructive ones), recurring failures, repeated commands
+  and fetches, slow tools, read-only subagents not on Haiku, context pressure, a large first
+  request, unused or unreliable MCP servers.
+- **History per project**, with insights on: counts for the last 30 sessions, which the rules use
+  and which `mark applied` compares before and after a change.
+- **AI review**: the skill `/session-radar:radar-review` turns an export into proposed changes, as
+  diffs, in your session. It uses tokens; the mod itself still calls no model.
+- With insights on, the export ends with an `insights` section. The fields before it are unchanged.
 
-### Security
+### Changed
+
+- Tabs `6` and `7` are new; `1` to `5` are as before. In a narrow pane the tabs sit one cell apart.
+- The code is in two files: `hooks/register.js` imports the rules from `hooks/insights.js`.
+
+### Privacy and security
 
 - The mod now calls `$.process.spawn`, `$.process.run`, `$.http.fetch` (loopback only) and
   `$.env.get('OS')`, all of them only after `/radar-web` or `w`. SECURITY.md lists why.
+- New mods API calls: `$.ui.notify` (notifications you turn on), `$.fs.read` (the project's
+  `.mcp.json`, server names only, only with insights on), `$.store.delete` (deleting the history).
+- The store now also holds `config` and, with insights on, `history`. [SECURITY.md](./SECURITY.md)
+  and [PRIVACY.md](./PRIVACY.md) say exactly what each holds.
 
 ## [0.3.0] - 2026-10-10
 
@@ -82,6 +108,7 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...main
+[0.4.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NeuralSeam/ns-session-radar/compare/e6d2d1cb3c06110318a949bdae909489040e8d51...v0.3.0
 [0.2.0]: https://github.com/NeuralSeam/ns-session-radar/tree/e6d2d1cb3c06110318a949bdae909489040e8d51

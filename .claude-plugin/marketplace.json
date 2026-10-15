@@ -9,8 +9,8 @@
     {
       "name": "session-radar",
       "source": "./",
-      "description": "A mod that shows what Claude Code is doing, live: tool calls, subagents, MCP and web calls, and model requests with tokens and cache. Open it with /radar.",
-      "version": "0.3.0",
+      "description": "A mod that shows what Claude Code is doing, live: tool calls, subagents, MCP and web calls, and model requests with tokens and cache; optional notifications and insights. Open it with /radar.",
+      "version": "0.4.0",
       "author": {
         "name": "Neural Seam",
         "url": "https://neuralseam.cloud"

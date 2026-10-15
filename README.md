@@ -13,9 +13,10 @@ Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 
 > **This is a mod, which means it is code.** It runs inside Claude Code with your permissions and
 > sees every prompt and tool call in the session. It sends nothing off your machine and calls no
-> model; the only file it writes is the one you ask for with `/radar-export`, and the only thing it
-> keeps between sessions is your language choice. The browser view, when you open it, is served
-> from `127.0.0.1` alone, behind a random token. [SECURITY.md](./SECURITY.md) lists
+> model; the only file it writes is the one you ask for with `/radar-export`. Between sessions it
+> keeps your language and settings and, only if you turn insights on, counts per project with no
+> prompt or argument in them. Notifications are off until you turn them on. The browser view, when
+> you open it, is served from `127.0.0.1` alone, behind a random token. [SECURITY.md](./SECURITY.md) lists
 > exactly what it calls, and `claude plugin validate .` prints the same list from the code.
 
 - **Portuguese:** [README.pt-BR.md](./README.pt-BR.md) (short guide; this file is canonical)
@@ -77,6 +78,48 @@ radar shows the time left under both.
 **5 · Summary.** How much of each kind of activity there was, and which tools the time went to,
 with their failures.
 
+**6 · Insights.** Off until you turn it on in Config. Fixed rules read what the radar recorded and
+suggest changes to how Claude Code is set up, most severe first, each with the numbers behind it:
+
+| Rule | What it looks for | What it suggests |
+| --- | --- | --- |
+| Cache expired | A pause longer than the cache TTL, then the prompt sent again uncached | The cache warning; whether a 1 hour TTL would have paid off here |
+| Model switch | The same loop changing model and losing its cache | Switching between activities instead |
+| Denials | The same command denied twice or more | A `permissions.allow` rule for read-only commands, a `permissions.deny` rule for destructive ones (never `allow`) |
+| Failures | The same command failing three times or more, this session and earlier ones | The right command in CLAUDE.md, or a hook |
+| Repeated command, repeated fetch | The same command 5 times, the same URL 3 times | A script, skill or slash command; a local copy of the docs |
+| Slow tool | A tool whose 95th percentile is over a minute | Running it in the background |
+| Subagent model | A subagent that only read files, on a model other than Haiku | The `Explore` type or `model: haiku` |
+| Context | Context over 80% | `/compact`, or loading less every session |
+| First request | A first request over 30k tokens, or well over this project's median | Reviewing CLAUDE.md, MCP servers and skills |
+| Unused MCP, unreliable MCP | A server in `.mcp.json` not called in 5 sessions; one that fails or is slow | Disabling or fixing it |
+
+Each finding has a `mark applied` button. Press it once you have made the change, and the tab
+compares the rule's number per session before and after, so you can see whether it paid off.
+
+**7 · Config.** Everything that notifies or keeps data starts off. Move with Tab or the arrows, and
+press Enter to change a line:
+
+| Setting | What it does |
+| --- | --- |
+| Notify when an activity ends | A notification when an activity that took at least 15 s, 30 s, 1 min or 2 min ends: its number, duration, tools, failures and when the cache expires. Never the prompt |
+| Warn before the cache expires | One notification per cache entry, 30 s to 5 min before the main session's cache expires, while nothing is running: how long is left and how many tokens the next request would rewrite. An unknown TTL counts as 5 minutes, and the text says so |
+| Insights, with per-project history | Turns on the Insights tab and keeps counts per project between sessions (below) |
+| Suggest the AI review | Shows the [AI review](#ai-review) in the Insights tab |
+| Delete the stored history | Deletes every project's history |
+| Language | auto, Portuguese or English |
+
+Notifications go through Claude Code's own notification channel, the one your
+`preferredNotifChannel` setting names, and your `Notification` hooks see them. A terminal that does
+not show notifications may only ring its bell.
+
+**History.** With insights on, the radar keeps, per project folder, counts for each of the last 30
+sessions in at most 20 projects: activities, calls, failures, denials, tokens, cache, the size of the
+first request, time and failures per tool, which MCP servers were called, and the first two words of
+each failing command. No prompt and no argument. It also reads the server names from the project's
+`.mcp.json`, and nothing else from it. MCP servers you added for your user, not the project, are in
+`~/.claude.json`, which a mod cannot read, so the unused-MCP rule does not see them.
+
 The interface is in English or Brazilian Portuguese. Pick one with `/radar-lang pt`,
 `/radar-lang en` or `/radar-lang auto`, or press `l` in the pane to cycle through them. `auto`, the
 default, follows your system language. The choice is kept for your next sessions.
@@ -116,12 +159,14 @@ To try it without installing, clone this repository and start Claude Code with
 | `/radar-export` | Writes everything recorded so far to `session-radar-<time>.json` in the current folder |
 | `/radar-lang pt\|en\|auto` | Sets the language and keeps it for your next sessions; with no argument, says which is set |
 | `/radar-web` | Opens the radar in your browser (see [Browser view](#browser-view)); `/radar-web stop` ends it |
+| `/radar-config` | Opens the pane on the Config tab |
+| `/session-radar:radar-review` | The [AI review](#ai-review) of an export. Uses tokens |
 
 Inside the pane:
 
 | Key | What it does |
 | --- | --- |
-| `1` to `5` | Switch tab: Timeline, Activities, Agents, API, Summary |
+| `1` to `7` | Switch tab: Timeline, Activities, Agents, API, Summary, Insights, Config |
 | Tab, `↑` `↓`, Enter | In Activities, move between activities and open one |
 | `h` | In API, show or hide what each column means |
 | `l` | Cycle the language: auto, Portuguese, English |
@@ -131,7 +176,22 @@ Inside the pane:
 | `Esc` | Close the pane |
 
 The radar starts over on `/clear`, `/resume` and `/branch`, because those start a different
-conversation. Nothing is kept between sessions unless you export it.
+conversation. What it recorded is not kept between sessions unless you export it, or, with insights
+on, as the counts of the [history](#what-it-shows).
+
+## AI review
+
+The rules in the Insights tab find patterns and measure them; they do not write your CLAUDE.md. The
+plugin also ships a skill for that, `/session-radar:radar-review`. Export first (`e`), then run it.
+Claude, in your session and with your permissions, reads the newest `session-radar-*.json`, your
+CLAUDE.md, the `permissions`, `model` and `hooks` of your settings, and `.mcp.json`, and proposes
+changes as diffs, each with the numbers behind it and the radar metric that should move. It also
+does what fixed rules cannot: it groups your prompts into recurring tasks worth a skill, spots where
+CLAUDE.md and what happened disagree, and gives its guess, with its confidence, of why a command
+keeps failing. It applies nothing without asking, one change at a time.
+
+The review **uses tokens**, in the current session. The mod itself still calls no model: the skill
+is instructions for Claude, run only when you call it.
 
 ## Browser view
 
@@ -143,8 +203,8 @@ Press `w` in the pane (`/radar` opens it with the focus), or run `/radar-web`. T
 small server, `web/server.mjs` (Node, no dependencies), and your default browser opens on it. The
 reply and the pane also show the address as a link, for when no browser can be opened.
 
-The page has the same five areas, Timeline, Activities, Agents, API and Summary, plus a search box,
-filters by kind, status, agent and time window, sortable tables, charts of the prompt per request
+The page has the same five areas as the pane's first five tabs, Timeline, Activities, Agents, API
+and Summary (Insights and Config stay in the pane), plus a search box, filters by kind, status, agent and time window, sortable tables, charts of the prompt per request
 (cache read, cache written, new) and of each activity's duration, and a panel with every detail of
 a call or subagent. Keys: `1` to `5` switch area, `/` searches, `Esc` closes the panel.
 
@@ -184,7 +244,8 @@ In a narrow terminal the pane sits above the prompt instead of beside the transc
 | `agent.spawn` | That a subagent started, and its type |
 | `turn.step` | One request to the model: model, input and output tokens, cache read and written, and how much was written for 5 minutes and for 1 hour when the build passes it on |
 | `turn.start`, `turn.complete` | Where each turn starts and ends, the first 120 characters of its prompt (one line), and when a subagent finishes |
-| `$.session.usage()` | Context, cost and plan limits |
+| `$.session.usage()` | Context, cost and plan limits; with insights on, the highest context use of the session |
+| `.mcp.json` | With insights on, the names of the project's MCP servers, and nothing else |
 
 Some fields on `agent.spawn`, and the `agentId` on tool events, are not fully described in the
 public documentation. The mod reads the likely names and, when none is there, links a subagent to
