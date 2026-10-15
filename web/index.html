@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- Copyright 2026 Neural Seam. SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Session Radar</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">Session Radar</div>
+      <div class="conn" id="conn"><span class="dot"></span><span id="conn-text"></span></div>
+      <dl class="metrics" id="metrics"></dl>
+    </header>
+
+    <nav class="nav" id="nav"></nav>
+
+    <main class="main">
+      <div class="toolbar" id="toolbar">
+        <div class="search-wrap"><input id="search" type="search" autocomplete="off" spellcheck="false"></div>
+        <div class="filters">
+          <div class="seg" id="kinds"></div>
+          <div class="seg" id="statuses"></div>
+          <select id="agent-filter"></select>
+          <div class="seg" id="windows"></div>
+        </div>
+      </div>
+      <section class="view" id="view"></section>
+    </main>
+
+    <div class="scrim" id="scrim" hidden></div>
+    <aside class="detail" id="detail" hidden>
+      <div class="detail-head">
+        <h2 id="detail-title"></h2>
+        <button class="icon-btn" id="detail-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="detail-body" id="detail-body"></div>
+    </aside>
+
+    <footer class="foot">
+      <span id="credit"></span>
+      <span class="foot-hint" id="hint"></span>
+    </footer>
+  </div>
+  <div class="tip" id="tip" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

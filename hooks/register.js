@@ -10,9 +10,10 @@
 //   ◆ subagents (the Agent/Task tool plus the agent.spawn event)
 //   ✦ requests to the model (turn.step), with tokens and cache
 //
-// Shown in a pane with five tabs (/radar) and as a live summary beside the spinner.
-// Nothing leaves the session: no network, no model calls. The only writes are /radar-export and the
-// language preference, kept in the mod's own store.
+// Shown in a pane with five tabs (/radar), as a live summary beside the spinner, and, on request
+// (/radar-web), as a page in the browser served from this machine's loopback by web/server.mjs.
+// Nothing leaves the machine: no remote network, no model calls. The only writes are /radar-export
+// and the language preference, kept in the mod's own store.
 
 const PANE = 'session-radar'
 const MAX_SPANS = 500
@@ -21,6 +22,9 @@ const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 const LANGS = ['auto', 'pt', 'en']
 const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
+const WEB_PUSH_MS = 500
+const WEB_BEAT_MS = 5000
+const WEB_START_MS = 10_000
 
 // ---------------------------------------------------------------------------
 // Strings. The language is the one picked with /radar-lang or the `l` key; on `auto`, Brazilian
@@ -79,6 +83,13 @@ const STRINGS = {
     langUsage: 'Use /radar-lang pt, /radar-lang en or /radar-lang auto.',
     exported: 'Radar exported to', exportFailed: 'Could not export the radar:', exportNone: 'Could not export the radar.',
     credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
+    web: 'Browser',
+    cmdWeb: 'Open the radar in the browser, served from this machine only; /radar-web stop ends it',
+    webOpened: (url) => `Radar web view: ${url}`,
+    webStopped: 'Radar web view stopped.',
+    webIdle: 'The radar web view is not running.',
+    webFailed: 'Could not start the radar web view. It needs Node.js 20 or later on the PATH (`node`).',
+    webUsage: 'Use /radar-web to open it or /radar-web stop to end it.',
   },
   pt: {
     tabTimeline: 'Tempo', tabActivities: 'Atividades', tabAgents: 'Agentes', tabApi: 'API', tabSummary: 'Resumo',
@@ -131,6 +142,13 @@ const STRINGS = {
     langUsage: 'Use /radar-lang pt, /radar-lang en ou /radar-lang auto.',
     exported: 'Radar exportado para', exportFailed: 'Não foi possível exportar o radar:', exportNone: 'Não foi possível exportar o radar.',
     credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
+    web: 'Navegador',
+    cmdWeb: 'Abre o radar no navegador, servido só nesta máquina; /radar-web stop encerra',
+    webOpened: (url) => `Radar no navegador: ${url}`,
+    webStopped: 'Radar no navegador encerrado.',
+    webIdle: 'O radar no navegador não está rodando.',
+    webFailed: 'Não foi possível iniciar o radar no navegador. Ele precisa do Node.js 20 ou mais novo no PATH (`node`).',
+    webUsage: 'Use /radar-web para abrir ou /radar-web stop para encerrar.',
   },
 }
 
@@ -295,7 +313,10 @@ const agentOf = (e) => e.agentId ?? 'main'
 const oneLine = (s) => String(s).replace(/\s+/g, ' ').trim()
 const trunc = (s, n) => (s.length > n ? s.slice(0, Math.max(0, n - 1)) + '…' : s)
 const pad = (s, n) => trunc(s, n).padEnd(n)
-const redraw = ($) => $.ui.invalidate('ui.render')
+const redraw = ($) => {
+  markWebDirty()
+  $.ui.invalidate('ui.render')
+}
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const kindName = (k) => L[KIND[k].nameKey]
 const agentName = (id) => (id === 'main' ? L.main : S.agents.get(id)?.label ?? id)
@@ -390,6 +411,161 @@ async function exportJson($) {
     $.ui.toast(`${L.exportFailed} ${err?.message ?? err}`)
     return null
   }
+}
+
+// ---------------------------------------------------------------------------
+// Web view. The mod has no server of its own: it starts web/server.mjs as a child, which dies with
+// the module, and sends it the same snapshot /radar-export writes, plus the session's usage. The
+// page reads it from 127.0.0.1 with a token; nothing here depends on the server being up.
+// ---------------------------------------------------------------------------
+
+// null, or { stream, base, url, ingest, ready, timer, dirty, lastPush, pushing }
+let web = null
+
+function markWebDirty() {
+  if (web) web.dirty = true
+}
+
+function usageSnapshot(u) {
+  if (!u) return null
+  const cost = typeof u.cost === 'number' ? u.cost : u.cost?.usd ?? u.cost?.total
+  return clean({
+    context: u.context ? clean({ tokens: u.context.tokens, window: u.context.window, percent: u.context.percent }) : null,
+    costUsd: typeof cost === 'number' ? cost : null,
+    rateLimits: (u.rateLimits ?? []).map((r) => clean({ kind: r.kind, percentUsed: r.percentUsed, resetsAt: r.resetsAt })),
+  })
+}
+
+async function pushWeb($) {
+  const w = web
+  if (!w?.base || w.pushing) return
+  if (!w.dirty && Date.now() - w.lastPush < WEB_BEAT_MS) return
+  w.pushing = true
+  w.dirty = false
+  try {
+    let usage = null
+    try {
+      usage = usageSnapshot(await $.session.usage())
+    } catch {
+      // usage() is not available here; the page shows what the radar collected
+    }
+    const body = JSON.stringify({
+      ...snapshot(),
+      now: Date.now(),
+      lang: L === STRINGS.pt ? 'pt' : 'en',
+      ttlSeen: S.ttlSeen,
+      usage,
+    })
+    const res = await $.http.fetch(`${w.base}/api/ingest`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-radar-token': w.ingest },
+      body,
+    })
+    w.lastPush = Date.now()
+    if (!res.ok) w.dirty = true
+  } catch {
+    w.dirty = true
+  } finally {
+    w.pushing = false
+  }
+}
+
+// Resolves the page's URL once the server says where it listens, or null when it cannot start
+function startWeb($) {
+  if (web) return web.ready
+  const w = { stream: null, base: null, url: null, ingest: null, timer: null, dirty: true, lastPush: 0, pushing: false }
+  web = w
+  w.ready = new Promise((resolve) => {
+    let settled = false
+    const settle = (url) => {
+      if (settled) return
+      settled = true
+      resolve(url)
+    }
+    const end = () => {
+      w.timer?.cancel()
+      if (web === w) web = null
+      settle(null)
+      $.ui.invalidate('ui.render')
+    }
+    try {
+      w.stream = $.process.spawn({ argv: ['node', `${$.plugin.root}/web/server.mjs`], cwd: $.plugin.root })
+    } catch {
+      end()
+      return
+    }
+    // The loop is the child's life: it reads until the server exits, then forgets it
+    void (async () => {
+      let buf = ''
+      try {
+        for await (const { stream, text } of w.stream) {
+          if (stream !== 'stdout' || w.base) continue
+          buf += text
+          const m = /RADAR_READY (\{.*\})/.exec(buf)
+          if (!m) continue
+          const info = JSON.parse(m[1])
+          w.base = `http://127.0.0.1:${info.port}`
+          w.url = `${w.base}/?t=${info.viewToken}`
+          w.ingest = info.ingestToken
+          w.timer = $.clock.every(WEB_PUSH_MS, () => pushWeb($))
+          void pushWeb($)
+          settle(w.url)
+          $.ui.invalidate('ui.render')
+        }
+      } catch {
+        // node is missing or the server failed: the radar goes on without it
+      }
+      end()
+    })()
+    $.clock.after(WEB_START_MS, () => {
+      if (!w.base && web === w) stopWeb($)
+    })
+  })
+  return w.ready
+}
+
+async function stopWeb($) {
+  const w = web
+  if (!w) return false
+  web = null
+  w.timer?.cancel()
+  if (w.base) {
+    try {
+      await $.http.fetch(`${w.base}/api/shutdown`, { method: 'POST', headers: { 'x-radar-token': w.ingest } })
+    } catch {
+      // Already gone; without heartbeats it would end on its own anyway
+    }
+  }
+  // Not awaited: it settles only once the child has gone, which the shutdown above already asked for
+  try {
+    w.stream?.return?.()?.catch?.(() => {})
+  } catch {
+    // The stream had already ended
+  }
+  $.ui.invalidate('ui.render')
+  return true
+}
+
+// Hands the URL to the system's browser. The pane and the command's reply show it too, as a link,
+// for when no opener is present (a remote shell, a container).
+async function openBrowser($, url) {
+  const isWindows = (await $.env.get('OS')) === 'Windows_NT'
+  const openers = isWindows ? [['rundll32', 'url.dll,FileProtocolHandler', url]] : [['xdg-open', url], ['open', url]]
+  for (const argv of openers) {
+    try {
+      const { exitCode } = await $.process.run(argv, { timeoutMs: 10_000 })
+      if (exitCode === 0) return true
+    } catch {
+      // Not on this system: try the next one
+    }
+  }
+  return false
+}
+
+async function openWeb($) {
+  const url = await startWeb($)
+  if (url) await openBrowser($, url)
+  return url
 }
 
 // ---------------------------------------------------------------------------
@@ -760,6 +936,7 @@ export function register(on) {
     await $.command.register({ name: 'radar', description: L.cmdRadar, immediate: true })
     await $.command.register({ name: 'radar-export', description: L.cmdExport, immediate: true })
     await $.command.register({ name: 'radar-lang', description: L.cmdLang, argumentHint: 'pt | en | auto', immediate: true })
+    await $.command.register({ name: 'radar-web', description: L.cmdWeb, argumentHint: 'stop', immediate: true })
     // Keep the timers of running items moving, once a second, only when something is on screen
     $.clock.every(1000, () => {
       if (paneOpen || S.spans.some((s) => !s.end)) $.ui.invalidate('ui.render')
@@ -772,6 +949,7 @@ export function register(on) {
     if (e.reason === 'clear' || e.reason === 'resume') {
       S = fresh()
       openTurn = null
+      markWebDirty()
     }
     return next(e)
   })
@@ -801,6 +979,14 @@ export function register(on) {
     await saveLanguage($, pref)
     redraw($)
     return { text: `${L.langNow} ${pref === 'auto' ? L.langAuto : pref}` }
+  })
+
+  on('command.run', { command: 'radar-web' }, async ($, e) => {
+    const arg = String(e.args ?? '').trim().toLowerCase()
+    if (arg === 'stop') return { text: (await stopWeb($)) ? L.webStopped : L.webIdle }
+    if (arg && arg !== 'open') return { text: L.webUsage }
+    const url = await openWeb($)
+    return { text: url ? L.webOpened(url) : L.webFailed }
   })
 
   on('ui.close', async ($, e, next) => {
@@ -951,7 +1137,7 @@ export function register(on) {
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     if (e.requestId !== PANE) return next(e)
     const ui = $.ui.resolve(e)
-    const { Box, Text, Button } = ui
+    const { Box, Text, Button, Link } = ui
     // Two cells narrower than the body: the pane's close mark is drawn over the first row's last cell
     const width = Math.max(40, (e.props.bodyColumns ?? 84) - 2)
     const bodyRows = e.props.scroll?.bodyRows ?? 22
@@ -991,6 +1177,17 @@ export function register(on) {
             redraw($)
           },
         }),
+        Button({
+          key: 'web',
+          label: L.web,
+          hotkey: 'w',
+          plain: true,
+          dimColor: !web?.url,
+          onPress: async () => {
+            if (!(await openWeb($))) $.ui.toast(L.webFailed)
+          },
+        }),
+        ...(web?.url && Link ? [Text({ wrap: 'truncate', children: [Link({ href: web.url, label: web.base.replace('http://', '') })] })] : []),
         Button({
           key: 'lang',
           label: `${L.language}: ${langPref === 'auto' ? 'auto' : langPref.toUpperCase()}`,

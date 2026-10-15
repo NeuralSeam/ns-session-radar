@@ -47,6 +47,10 @@ here, treat the drawing and the subagent links as unverified on your build. The 
 | `tool.call`, `turn.step`, `turn.start`, `turn.complete`, `agent.spawn` events | Claude Code 2.1.287 |
 | `Pane` and `Spinner` render sites | Claude Code 2.1.287 |
 | `$.session.usage()` returns context, cost and rate limits | Claude Code 2.1.287 |
+| `$.process.spawn`, `$.process.run` and `$.http.fetch`, for the browser view only | Claude Code 2.1.300 (the build it was run on) |
+
+The browser view also needs Node.js 20 or later on the `PATH`. Without it, `/radar-web` says so and
+the rest of the mod is unaffected.
 
 If one of these changes in a later build, the mod may draw Claude Code's own version of a site
 instead of its own, and a transcript line in a `--plugin-dir` session says which.
