@@ -23,6 +23,9 @@ const MAX_SPANS = 500
 const MAX_TURNS = 200
 const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
+// The release, shown in the credit line and on the page. It must match .claude-plugin/plugin.json;
+// npm test checks it
+const VERSION = '0.5.1'
 const LANGS = ['auto', 'pt', 'en']
 const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
@@ -95,7 +98,7 @@ const STRINGS = {
     langAuto: 'auto (system language)',
     langUsage: 'Use /radar-lang pt, /radar-lang en or /radar-lang auto.',
     exported: 'Radar exported to', exportFailed: 'Could not export the radar:', exportNone: 'Could not export the radar.',
-    credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
+    credit: `Session Radar · by Neural Seam · neuralseam.cloud · v${VERSION}`,
     web: 'Browser',
     cmdWeb: 'Open the radar in the browser, served from this machine only; /radar-web stop ends it',
     webOpened: (url, b) => `Radar web view ${b}: ${url}`,
@@ -233,7 +236,7 @@ const STRINGS = {
     langAuto: 'auto (idioma do sistema)',
     langUsage: 'Use /radar-lang pt, /radar-lang en ou /radar-lang auto.',
     exported: 'Radar exportado para', exportFailed: 'Não foi possível exportar o radar:', exportNone: 'Não foi possível exportar o radar.',
-    credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
+    credit: `Session Radar · por Neural Seam · neuralseam.cloud · v${VERSION}`,
     web: 'Navegador',
     cmdWeb: 'Abre o radar no navegador, servido só nesta máquina; /radar-web stop encerra',
     webOpened: (url, b) => `Radar no navegador ${b}: ${url}`,
@@ -821,6 +824,7 @@ async function pushWeb($) {
       ttlSeen: S.ttlSeen,
       usage,
       session: { ...badge, cwd, model },
+      version: VERSION,
     })
     const res = await $.http.fetch(`${w.base}/api/ingest`, {
       method: 'POST',

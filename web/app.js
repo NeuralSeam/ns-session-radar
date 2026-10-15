@@ -1120,7 +1120,8 @@
   function render() {
     dirty = false
     document.documentElement.lang = T === I18N.pt ? 'pt-BR' : 'en'
-    $('credit').textContent = T.credit
+    const version = typeof data?.version === 'string' && /^\d+\.\d+\.\d+$/.test(data.version) ? data.version : ''
+    $('credit').textContent = version ? `${T.credit} · v${version}` : T.credit
     $('hint').textContent = T.hint
     renderHeader()
     renderNav()
