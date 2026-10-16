@@ -8,6 +8,8 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-16
+
 ### Added
 
 - **Beside or below, as DevTools docks.** `d` in the radar, or *Radar position* in Config, moves it
@@ -189,7 +191,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.6.0...main
+[0.6.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...v0.4.0
