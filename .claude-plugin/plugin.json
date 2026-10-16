@@ -1,6 +1,6 @@
 {
   "name": "session-radar",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "A mod that shows what Claude Code is doing, live: a timeline of tool calls, subagents, MCP and web calls, and every request to the model with tokens and cache; optional notifications, and insights that suggest changes to your Claude Code setup. Open it with /radar. Needs Claude Code 2.1.287 or later.",
   "author": {
     "name": "Neural Seam",
@@ -9,6 +9,7 @@
   "homepage": "https://github.com/NeuralSeam/ns-session-radar",
   "repository": "https://github.com/NeuralSeam/ns-session-radar",
   "license": "Apache-2.0",
+  "types": "./types/index.d.ts",
   "keywords": [
     "claude-code",
     "claude-code-mod",

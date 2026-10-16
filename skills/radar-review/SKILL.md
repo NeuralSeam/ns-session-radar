@@ -16,7 +16,10 @@ Answer in the language the person writes in.
 - Otherwise list `session-radar-*.json` in the working directory and take the newest. If there is
   more than one, say which you picked and that older ones exist.
 - If there is none, tell the person to open the radar (`/radar`), press `e` to export, and run this
-  review again. Stop there.
+  review again, or to turn on `Save the export automatically` in `/radar-config` so every activity
+  leaves one. Stop there.
+- With that setting on, there is one file per conversation, rewritten after each activity. The
+  newest is the current conversation; older files are earlier conversations of this project.
 
 An export with an `insights` section was made with insights turned on: it holds the radar's
 `findings`, the project's `history` (counts per earlier session) and the `applied` comparisons.

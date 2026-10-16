@@ -8,6 +8,62 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-16
+
+### Added
+
+- **Beside or below, as DevTools docks.** `d` in the radar, or *Radar position* in Config, moves it
+  below the transcript, into the band above the prompt, or back beside it; the choice is kept for
+  your next sessions. Below, it is compact to fit the band: tabs and actions share a row when they
+  fit, Home and Config take two columns on a wide terminal, and the notes and blank lines are left
+  out. A rounded frame in the badge's color sets it apart from the transcript, from 8 rows. `ctrl+x
+  tab` or a click gives the band the keys, and `q` closes it.
+- **What the radar recorded survives a reload of the mod.** Updating it, `/reload-plugins` or a hot
+  reload while developing it used to start the radar over, empty; it now carries on with the same
+  conversation, its activities, calls, agents and tokens. A call still running at the reload shows as
+  interrupted. `/clear` and `/resume` still start over.
+- Config: **Save the export automatically when an activity ends**. Each time an activity ends, the
+  radar writes the same JSON as `/radar-export`, without a toast: one `session-radar-<start>.json`
+  per conversation in the current folder, rewritten with the whole conversation so far, so
+  `/session-radar:radar-review` always has a recent export to read. Off by default.
+- **Home tab**, where the pane now opens: the model and its effort level, context, tokens in and out
+  with the cache share, cost, the 5-hour and weekly plan limits with when each starts over, and when
+  the main session's cache expires. Below, one line per tab and one for what only the browser shows,
+  with their numbers once there are some.
+- `h` explains how to read every tab.
+- Browser view: a **Home** view with the session's cards and the **machine's memory** (in use, total,
+  and a chart of the last 10 minutes), above what was the Summary view. The memory is read by the
+  browser view's own server, every 2 seconds.
+- Browser view: an **Insights** view, read-only: the findings with their hints, what you marked as
+  applied and the comparisons since, in the pane's language.
+
+### Changed
+
+- **The pane keeps four tabs: Home, Activities, Insights and Config**, keys `1` to `4`. Timeline,
+  Agents and Tokens (was API) moved to the browser view, which has room for them; without Node or a
+  local browser they are still in the export. The browser view's keys are `1` Home, `2` Activities,
+  `3` Insights, `4` Timeline, `5` Agents, `6` Tokens: the first three match the pane's.
+- Plan limits are named (`5h window`, `Weekly`, `Spend limit`) and say when they reset, in the pane
+  and in the browser view, instead of showing their id (`five_hour`).
+- The status row is shorter: time, activities, tools and failures. The rest is on Home.
+- `x` asks before it clears: press it again within 3 seconds.
+- The language left the action row (`l`); it stays in Config and `/radar-lang`.
+
+### Privacy and security
+
+- New mods API calls: `$.state.get` and `$.state.set`. A copy of what the radar recorded goes to
+  Claude Code's session state, in memory, so a reload does not lose it; it holds nothing the radar
+  did not already keep, and ends with the session.
+- `$.fs.write` can now also run when an activity ends, only while that setting is on. The file
+  holds what the export holds; keep `session-radar-*.json` out of git.
+- New mods API call: `$.config.list`, while Home is drawn or the browser view runs, to find the
+  effort level in the `/config` rows; the session API does not report it. Only that row's value is
+  kept. `$.session.model` now also runs for Home.
+- The browser view's server reads the machine's total and free memory (`os.totalmem`,
+  `os.freemem`) and keeps 10 minutes of them in memory, for the page alone. No process list, no
+  command. The snapshot the page receives also carries the effort level and, with insights on, the
+  findings as text. The page still only reads.
+
 ## [0.5.1] - 2026-10-15
 
 ### Added
@@ -135,7 +191,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.6.0...main
+[0.6.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.3.0...v0.4.0

@@ -8,7 +8,8 @@ Guia curto. O [README.md](./README.md) em inglês é o documento de referência.
 
 > **Isto é um mod, ou seja, é código.** Ele roda dentro do Claude Code com as suas permissões e vê
 > todo prompt e toda chamada de ferramenta da sessão. Não envia nada para fora da sua máquina e não
-> chama nenhum modelo; o único arquivo que grava é o que você pede com `/radar-export`. Entre sessões
+> chama nenhum modelo; o único arquivo que grava é o export: quando você pede com `/radar-export`, ou
+> ao fim de cada atividade, se você ligar isso. Entre sessões
 > guarda o idioma e as configurações e, só se você ligar os insights, contagens por projeto, sem
 > prompts nem argumentos. As notificações ficam desligadas até você ligar. A visão no navegador,
 > quando você a abre, é servida só em `127.0.0.1`, protegida por um token aleatório. O
@@ -42,17 +43,33 @@ Para testar sem instalar: clone este repositório e rode `claude --plugin-dir ./
 | `/radar-config` | Abre o painel na aba Config |
 | `/session-radar:radar-review` | A análise com IA de um export. Usa tokens |
 
-No painel: `1` a `7` trocam de aba (Tempo, Atividades, Agentes, API, Resumo, Insights, Config), `w`
-abre no navegador, `l` troca o idioma, `e` exporta, `x` limpa, `Esc` fecha. Em `auto` (o padrão) a
-interface segue o idioma do sistema.
+O radar tem dois lugares. **O painel no terminal** fica com o que se lê num relance ou pede ação
+agora: Início, Atividades, Insights e Config. **O navegador** (`w` ou `/radar-web`) acrescenta o que
+precisa de espaço: linha do tempo, agentes, cada requisição com o cache, gráficos e a memória da
+máquina.
 
+No painel: `1` a `4` trocam de aba (Início, Atividades, Insights, Config), `h` explica como ler a
+aba, `w` abre no navegador, `e` exporta, `x` limpa (aperte duas vezes em até 3 segundos), `d` move
+o radar para baixo do transcript ou de volta para a lateral, `Esc` fecha.
+
+**Na lateral ou abaixo**, como o DevTools: `d`, ou *Posição do radar* em Config, que fica para as
+próximas sessões. Na lateral o radar é um painel, que o Claude Code encaixa ao lado do transcript em
+tela cheia a partir de 110 colunas e, fora isso, acima do prompt. Abaixo, ele ocupa a faixa acima do
+prompt, compacto: abas e ações numa linha quando cabem, Início e Config em duas colunas num terminal
+largo, sem notas nem linhas em branco, numa moldura arredondada na cor do crachá que a separa do
+transcript (a partir de 8 linhas; abaixo disso as linhas ficam para o radar). A faixa recebe as teclas depois de `ctrl+x tab` ou de um
+clique, `q` fecha, e uma pesquisa do Claude Code tem a vez na faixa. Um mod não posiciona o painel
+sozinho, então não há lado esquerdo. O idioma fica em Config e em `/radar-lang`; em `auto` (o padrão) a interface segue o idioma
+do sistema.
+
+- **Início:** a aba que abre primeiro. Mostra o modelo e o nível de esforço, quanto do contexto está
+  ocupado, os tokens de entrada e saída com a parte que veio do cache, o custo, quanto das janelas
+  de 5 horas e semanal do plano já foi usado, com quando cada uma renova, e quando o cache da sessão
+  principal expira. Abaixo, uma linha por aba e o que só o navegador mostra, com quanto há de cada
+  coisa. O esforço vem da linha do `/config` que o guarda; se a sua versão não tiver essa linha,
+  aparece só o modelo.
 - **Atividades:** uma linha por prompt enviado. Tab ou as setas navegam e Enter abre a atividade,
   que lista cada ferramenta chamada, em ordem, inclusive as dos subagentes.
-- **API:** `h` explica as colunas. `novo` são os tokens de entrada que o cache não serviu, cobrados
-  pelo preço cheio. `cache↓` é o que foi lido do cache e `cache↑` o que foi gravado nele. `prompt`
-  é a requisição inteira e `hit%` a parte que veio do cache. Linha amarela indica provável perda de
-  cache. Em **Vida do cache** aparecem a TTL, quanto tempo falta para expirar e quanto a próxima
-  requisição regrava se expirar.
 - **Insights:** desligados até você ligar em Config. Regras fixas leem o que o radar registrou e
   sugerem mudanças na configuração do Claude Code, cada uma com os números que a justificam: cache
   expirado depois de uma pausa (e se uma TTL de 1h compensaria), troca de modelo que perdeu o cache,
@@ -60,7 +77,8 @@ interface segue o idioma do sistema.
   os destrutivos, nunca `allow`), falhas recorrentes, comandos e buscas repetidos, ferramentas
   lentas, subagentes só de leitura fora do Haiku, contexto acima de 80%, primeira requisição grande,
   MCP sem uso ou instável. O botão `marcar aplicado` compara o número da regra por sessão antes e
-  depois da mudança.
+  depois da mudança. O navegador mostra os mesmos achados e comparações, só para leitura: marcar é
+  no painel.
 - **Config:** tudo o que notifica ou guarda dados começa desligado. Tab ou as setas navegam e Enter
   muda a linha.
   - *Avisar quando uma atividade terminar*, só se levou pelo menos 15 s, 30 s, 1 min ou 2 min.
@@ -72,10 +90,33 @@ interface segue o idioma do sistema.
     sessões em até 20 projetos, sem prompts e sem argumentos, e lê do `.mcp.json` só os nomes dos
     servidores.
   - *Sugerir a análise com IA*, *Apagar o histórico guardado* e o idioma.
+  - *Salvar o export automaticamente quando uma atividade terminar*: grava o export sem perguntar,
+    um `session-radar-<início>.json` por conversa na pasta atual, regravado a cada atividade com a
+    conversa inteira, pronto para a [análise com IA](#análise-com-ia). Ponha `session-radar-*.json`
+    no seu `.gitignore`.
 
   - *Sempre mostrar o crachá desta sessão*, abaixo do prompt (veja abaixo).
 
   As notificações usam o canal de notificação do Claude Code (`preferredNotifChannel`).
+
+No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel.
+
+- **Início:** os cards da sessão e a **memória da máquina**: quanto está em uso, de quanto, e um
+  gráfico dos últimos 10 minutos. Abaixo, chamadas por tipo, duração de cada atividade e tempo por
+  ferramenta. A memória é lida pelo próprio servidor do navegador, a cada 2 segundos, dos totais do
+  sistema operacional: sem lista de processos e sem comandos. No macOS a memória em cache conta como
+  usada, então a livre parece menor do que é.
+- **Atividades** e **Insights:** como no painel, com filtros e busca.
+- **Tempo:** a linha do tempo, uma linha por chamada, com janela de 15, 5 ou 1 minuto.
+- **Agentes:** a árvore da sessão principal e dos subagentes.
+- **Tokens:** contexto, custo, limites, cache, a vida do cache de cada loop, um gráfico do prompt por
+  requisição e a tabela de todas elas. `O que significa cada coluna` explica: `Novo` são os tokens
+  de entrada que o cache não serviu, cobrados pelo preço cheio; `Cache↓` é o que foi lido do cache e
+  `Cache↑` o que foi gravado nele; `Prompt` é a requisição inteira e `Acerto` a parte que veio do
+  cache. Linha destacada indica provável perda de cache.
+
+Sem Node, ou sem navegador na mesma máquina (SSH puro, alguns containers), a linha do tempo, os
+agentes e os tokens continuam no export (`/radar-export`).
 
 ## Várias sessões ao mesmo tempo
 
@@ -95,7 +136,8 @@ navegador fechado, ligue *Sempre mostrar o crachá desta sessão* em Config.
 
 ## Análise com IA
 
-O plugin traz a skill `/session-radar:radar-review`. Exporte (`e`) e rode a skill: o Claude, na sua
+O plugin traz a skill `/session-radar:radar-review`. Exporte (`e`), ou ligue *Salvar o export
+automaticamente* em Config, e rode a skill: o Claude, na sua
 sessão e com as suas permissões, lê o export mais recente, o CLAUDE.md, as chaves `permissions`,
 `model` e `hooks` das configurações e o `.mcp.json`, e propõe mudanças em forma de diff, cada uma com
 a evidência e a métrica do radar que deve mudar. Também agrupa os prompts em tarefas recorrentes,
@@ -107,11 +149,12 @@ aplica nada sem perguntar. **Usa tokens** da sessão atual; o mod continua sem c
 O Claude Code não desenha uma página web dentro do terminal, então a visão completa abre no seu
 navegador. Aperte `w` no painel (o `/radar` já abre com o foco nele) ou rode `/radar-web`: o mod
 inicia um servidor pequeno (`web/server.mjs`, Node 20+ no `PATH`, sem dependências) e o navegador
-abre sozinho. As mesmas cinco áreas, com busca, filtros, tabelas ordenáveis, gráficos e um painel
-de detalhes.
+abre sozinho. São seis visões (veja acima), com busca, filtros, tabelas ordenáveis, gráficos e um
+painel de detalhes. A página só lê: Config e `marcar aplicado` ficam no painel.
 
 O servidor escuta só em `127.0.0.1`, em porta escolhida pelo sistema, exige um token aleatório e
-não carrega nada de fora. Ele termina com `/radar-web stop`, quando o Claude Code fecha, e sozinho
+não carrega nada de fora. Guarda em memória só o último envio do mod e os últimos 10 minutos de
+leituras de memória. Ele termina com `/radar-web stop`, quando o Claude Code fecha, e sozinho
 30 segundos depois que o mod para de enviar. O `w` funciona com o painel em foco, não enquanto você
 digita no prompt. Sem Node, o `/radar-web` avisa e o resto continua funcionando.
 

@@ -28,7 +28,10 @@ const writes = []
 const notes = []
 const statuses = []
 const stored = new Map()
+// The session's state, held by Claude Code across reloads of the mod; a round trip through JSON too
+const state = new Map()
 const commands = []
+const panes = []
 let tick = () => {}
 const $ = {
   ui: {
@@ -40,8 +43,15 @@ const $ = {
       notes.push({ text, ...options })
       return { isSent: true, channel: 'terminal_bell' }
     },
-    open: async () => ({ isPlaced: true }),
-    close: async () => {},
+    open: async (pane) => {
+      panes.push(['open', pane.id])
+      return { isPlaced: true }
+    },
+    // As Claude Code does, closing a pane raises ui.close
+    close: async ({ id }) => {
+      panes.push(['close', id])
+      await fire('ui.close', { id, origin: { kind: 'plugin' } })
+    },
   },
   command: { register: async (c) => commands.push(c) },
   // A round trip through JSON, as the real store does
@@ -50,11 +60,31 @@ const $ = {
     set: async (k, v) => stored.set(k, JSON.stringify(v)),
     delete: async (k) => stored.delete(k),
   },
+  state: {
+    get: async (ref) => {
+      const key = `${ref.plugin}.${ref.key}`
+      return state.has(key) ? { value: JSON.parse(state.get(key)), version: 1 } : { value: undefined, version: 0 }
+    },
+    set: async (ref, value) => {
+      state.set(`${ref.plugin}.${ref.key}`, JSON.stringify(value))
+      return { isSet: true, version: 1 }
+    },
+  },
   clock: { every: (_ms, fn) => (tick = fn) },
   session: {
     id: async () => 'sim-session-1',
-    usage: async () => ({ context: { tokens: 84000, window: 200000, percent: 42 }, cost: 0.42, rateLimits: [] }),
+    model: async () => 'claude-opus-5-5',
+    usage: async () => ({
+      context: { tokens: 84000, window: 200000, percent: 42 },
+      cost: 0.42,
+      rateLimits: [
+        { kind: 'five_hour', percentUsed: 31, resetsAt: new Date(Date.now() + 2 * 3600_000).toISOString() },
+        { kind: 'seven_day', percentUsed: 18, resetsAt: new Date(Date.now() + 3 * 86400_000).toISOString() },
+      ],
+    }),
   },
+  // The /config rows; the radar keeps only the effort's value
+  config: { list: async () => [{ key: 'theme', value: 'dark' }, { key: 'effortLevel', label: 'Effort', value: 'high' }] },
   fs: {
     write: async (path, text) => writes.push({ path, text }),
     read: async (path) => {
@@ -81,6 +111,8 @@ async function step(ev, usage) {
   })
   while (!(await gen.next()).done);
 }
+
+const realNowEarly = Date.now
 
 // A short session: one turn, a failing Bash, a subagent with its own calls, a web fetch
 await fire('session.start', { cwd: '/work/app' })
@@ -110,7 +142,7 @@ const flat = (n) => {
   return (n.children ?? []).map(flat).join(sep)
 }
 const findKey = (n, key) => (n?.key === key ? n : (n?.children ?? []).map((c) => findKey(c, key)).find(Boolean))
-const TAB_IDS = ['timeline', 'activities', 'agents', 'api', 'summary', 'insights', 'config']
+const TAB_IDS = ['home', 'activities', 'insights', 'config']
 const drawPane = (cols = 96) =>
   fire('ui.render', { component: 'Pane', requestId: 'session-radar', props: { bodyColumns: cols, scroll: { bodyRows: 24 } } }, async () => null)
 
@@ -121,7 +153,7 @@ for (const id of TAB_IDS) {
     const text = flat(await drawPane(cols))
     const widest = Math.max(...text.split('\n').filter((l) => !l.includes(': ')).map((l) => [...l].length))
     assert.ok(text.length > 0, `${id} drew nothing`)
-    if (id === 'timeline') assert.ok(widest <= cols - 2, `${id} at ${cols} columns is ${widest} wide`)
+    if (id === 'home') assert.ok(widest <= cols - 2, `${id} at ${cols} columns is ${widest} wide`)
     if (PRINT && cols === 96) console.log(`──── ${id}\n${text}\n`)
   }
 }
@@ -163,11 +195,43 @@ for (const id of TAB_IDS) {
 }
 await fire('command.run', { command: 'radar-lang', args: 'pt' })
 assert.equal(await lastLine(), `Session Radar · por Neural Seam · neuralseam.cloud · v${VERSION}`)
-findKey(await drawPane(), 'tab-timeline').onPress()
+findKey(await drawPane(), 'tab-home').onPress()
 assert.ok(!spin.props.suffix.includes('Neural Seam'), 'the spinner summary carries no credit')
 
 // The checks below read English text, whatever the machine's language
 await fire('command.run', { command: 'radar-lang', args: 'en' })
+
+// Home: the model and its effort, the context, the tokens, the plan limits, then what each tab shows
+findKey(await drawPane(), 'tab-home').onPress()
+const home = flat(await drawPane())
+assert.match(home, /Model\s+opus-5-5 · effort high/)
+assert.match(home, /Context\s+█+░+ 42%  84\.0k of 200\.0k/)
+assert.match(home, /Tokens\s+20\.5k in \(88% from cache\) · 1\.2k out · US\$ 0\.42/)
+assert.match(home, /5h window\s+█+░+ 31%  resets at \d\d:\d\d/)
+assert.match(home, /Weekly\s+█+░+ 18%  resets (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d/)
+assert.ok(!home.includes('five_hour'), 'a limit is named, not shown by its id')
+assert.match(home, /Where to look/)
+assert.match(home, /2 Activities\s+1 activity · each prompt/)
+assert.match(home, /3 Insights\s+.*off: turn on in 4/)
+assert.match(home, /4 Config\s+notifications/)
+// What only the browser shows, with how much there is
+assert.match(home, /w Browser\s+6 calls, 2 requests · timeline, agents, tokens, memory/)
+// The main session's cache, from the 1 hour TTL the request reported
+assert.match(home, /Cache\s+expires in 59m\d\ds · if it expires: ~19\.7k tok rewritten/)
+for (const gone of ['Timeline', 'Agents', 'Tokens']) {
+  assert.ok(!findKey(await drawPane(), 'tab-' + gone.toLowerCase()), `${gone} is in the browser view only`)
+}
+// The status row keeps what tells at a glance how it goes; the breakdown is on Home
+const statusRow = flat(findKey(await drawPane(), 'status'))
+assert.match(statusRow, /1 activity · 6 tools · 2 failures$/)
+assert.ok(!statusRow.includes('MCP'))
+// The effort is left out when /config lists no such row
+const realList = $.config.list
+$.config.list = async () => [{ key: 'theme', value: 'dark' }]
+Date.now = ((n) => () => n)(Date.now() + 10_000)
+assert.match(flat(await drawPane()), /Model\s+opus-5-5\n/)
+Date.now = realNowEarly
+$.config.list = realList
 
 // Activities: one per prompt, the newest open, listing every call it made, its subagent's included
 findKey(await drawPane(), 'tab-activities').onPress()
@@ -188,16 +252,24 @@ findKey(await drawPane(), 'turn-t1').onPress()
 assert.ok(flat(await drawPane()).includes('npm test'), 'pressing an activity opens it')
 if (PRINT) console.log(`──── activities, first opened\n${flat(await drawPane())}\n`)
 
-// API: the main loop's cache lifetime from the TTL the request reported, and the legend on h
-findKey(await drawPane(), 'tab-api').onPress()
-text = flat(await drawPane())
-assert.match(text, /TTL 1h/)
-assert.match(text, /expires in 59m/)
-assert.ok(!text.includes('does not report the cache TTL'), 'no fallback note once a TTL was seen')
+// h explains every tab, above it, in lines that fit
 findKey(await drawPane(), 'help').onPress()
-text = flat(await drawPane())
-assert.match(text, /input the cache did not serve/)
-if (PRINT) console.log(`──── api, with help\n${text}\n`)
+const HELP_START = {
+  home: 'The session at a glance', activities: 'Each prompt you send is one activity',
+  insights: 'Fixed rules read this session', config: 'Enter or a click changes a line',
+}
+for (const id of TAB_IDS) {
+  findKey(await drawPane(), 'tab-' + id).onPress()
+  for (const cols of [96, 60]) {
+    const lines = flat(await drawPane(cols)).split('\n')
+    assert.ok(lines[4].startsWith(HELP_START[id]), `help on ${id}: ${lines[4]}`)
+    const helpLines = lines.slice(4, lines.indexOf(' ', 4))
+    assert.ok(helpLines.every((l) => [...l].length <= cols - 2), `${id}'s help fits ${cols} columns`)
+  }
+}
+findKey(await drawPane(), 'help').onPress()
+assert.ok(!flat(await drawPane()).includes(HELP_START.config), 'h again hides it')
+findKey(await drawPane(), 'tab-home').onPress()
 
 // Language: /radar-lang switches and remembers, the l key cycles, a bad argument explains itself
 assert.ok(commands.some((c) => c.name === 'radar-lang'))
@@ -207,9 +279,11 @@ await fire('command.run', { command: 'radar-lang', args: 'pt-BR' })
 assert.equal(storedJson('language'), 'pt')
 text = flat(await drawPane())
 assert.match(text, /Atividades/)
-assert.match(text, /Vida do cache/)
-await findKey(await drawPane(), 'lang').onPress()
+assert.match(text, /Cache\s+expira em/)
+findKey(await drawPane(), 'tab-config').onPress()
+await findKey(await drawPane(), 'cfg-language').onPress()
 assert.equal(storedJson('language'), 'en')
+assert.ok(!findKey(await drawPane(), 'lang'), 'the language moved from the action row to Config')
 assert.match(flat(await drawPane()), /Activities/)
 await fire('command.run', { command: 'radar-lang', args: 'auto' })
 assert.equal(storedJson('language'), 'auto')
@@ -338,11 +412,201 @@ assert.equal(statuses.at(-1), code.replace(' ', ' radar '), 'the same session ke
 await press('cfg-badge')
 assert.equal(statuses.at(-1), undefined)
 
+// Saving the export after each activity: off by default; on, one file per conversation, rewritten
+// with the whole conversation each time, and in the background, so a turn never waits for it
+const autoOf = (from) => writes.slice(from)
+const toastsBefore = toasts.length
+let before = writes.length
+assert.match(flat(await drawPane()), /\[ \] Save the export automatically when an activity ends/)
+await fire('turn.start', { turnId: 'x1', text: 'refactor the parser' })
+await fire('turn.complete', { turnId: 'x1', durationMs: 10 })
+await sleep(5)
+assert.equal(writes.length, before, 'nothing is saved while the setting is off')
+await press('cfg-autoExport')
+assert.equal(storedJson('config').autoExport, true)
+assert.match(flat(await drawPane()), /\[x\] Save the export automatically/)
+await fire('turn.start', { turnId: 'x2', text: 'add a test for the parser' })
+await fire('turn.complete', { turnId: 'x2', durationMs: 10 })
+await sleep(5)
+await fire('turn.start', { turnId: 'x3', text: 'run the suite' })
+await fire('turn.complete', { turnId: 'x3', durationMs: 10 })
+await sleep(5)
+const auto = autoOf(before)
+assert.equal(auto.length, 2, 'one write per activity')
+assert.match(auto[0].path, /^session-radar-[\dT-]+Z\.json$/)
+assert.equal(auto[0].path, auto[1].path, 'the same conversation keeps its file')
+const autoData = JSON.parse(auto[1].text)
+assert.equal(autoData.turns.at(-1).prompt, 'run the suite')
+assert.ok(autoData.turns.at(-1).end, 'the activity that just ended is in it, finished')
+assert.ok(autoData.insights, 'with insights on, the saved file carries them like the export does')
+assert.equal(toasts.slice(toastsBefore).filter((t) => t.includes(auto[0].path)).length, 0, 'saving is quiet')
+// A new conversation gets a new file
+await sleep(5)
+await fire('session.end', { reason: 'clear' })
+await fire('turn.start', { turnId: 'y1', text: 'something else' })
+await fire('turn.complete', { turnId: 'y1', durationMs: 10 })
+await sleep(5)
+assert.notEqual(writes.at(-1).path, auto[0].path)
+assert.equal(JSON.parse(writes.at(-1).text).turns.length, 1)
+await press('cfg-autoExport')
+before = writes.length
+await fire('turn.start', { turnId: 'y2', text: 'one more' })
+await fire('turn.complete', { turnId: 'y2', durationMs: 10 })
+await sleep(5)
+assert.equal(writes.length, before, 'turned off, it stops saving')
+
 // Deleting the history takes the key out of the store
 findKey(await drawPane(), 'tab-config').onPress()
 await press('cfg-clearHistory')
 assert.equal(stored.has('history'), false)
 assert.ok(toasts.includes('History deleted.'))
 if (PRINT) console.log(`──── config\n${flat(await drawPane())}\n`)
+
+// x asks first: a second press within 3 seconds clears, a late one only asks again
+let drawn = await drawPane()
+const activitiesNow = () => /(\d+) activit/.exec(flat(findKey(drawn, 'status')))?.[1]
+const had = activitiesNow()
+assert.notEqual(had, '0')
+findKey(drawn, 'reset').onPress()
+drawn = await drawPane()
+assert.match(flat(findKey(drawn, 'actions')), /x: x again to clear/)
+assert.equal(activitiesNow(), had, 'one press clears nothing')
+at(4000)
+drawn = await drawPane()
+assert.match(flat(findKey(drawn, 'actions')), /x: Clear/)
+findKey(drawn, 'reset').onPress()
+drawn = await drawPane()
+assert.equal(activitiesNow(), had, 'a press after the wait only asks again')
+findKey(drawn, 'reset').onPress()
+drawn = await drawPane()
+assert.equal(activitiesNow(), '0')
+Date.now = realNow
+
+// Where the radar shows, as in DevTools: beside the transcript (the pane) or below it (the band
+// above the prompt), with d in the radar or the Config row, kept for the next sessions
+await fire('turn.start', { turnId: 'b1', text: 'look at the band' })
+await fire('tool.call', { tool: 'Read', file_path: 'band.js' }, async () => ({}))
+await fire('turn.complete', { turnId: 'b1', durationMs: 10 })
+await fire('command.run', { command: 'radar-lang', args: 'en' })
+// Rows as the terminal lays them out: a column stacks its children, a row sets them side by side
+// and a border adds a row above and below
+const rowsOf = (n) => (n == null || typeof n === 'string' || n.type !== 'Box' ? 1
+  : (n.borderStyle ? 2 : 0) + (n.flexDirection === 'column' ? (n.children ?? []).reduce((r, c) => r + rowsOf(c), 0)
+    : Math.max(1, ...(n.children ?? []).map(rowsOf))))
+const drawBand = (cols, maxRows, extra = {}) =>
+  fire('ui.render', { component: 'AbovePrompt', props: { bodyColumns: cols, maxRows, hasSurvey: false, ...extra } }, async () => 'engine band')
+assert.equal(await drawBand(160, 12), 'engine band', 'the band is left alone while the radar is a pane')
+assert.equal(storedJson('config').position, 'side', 'beside the transcript by default')
+let pane = await drawPane()
+assert.match(flat(findKey(pane, 'actions')), /d: Dock below/)
+assert.equal(findKey(pane, 'close'), undefined, 'the pane has its own close mark')
+panes.length = 0
+await findKey(pane, 'dock').onPress()
+assert.equal(storedJson('config').position, 'bottom')
+assert.deepEqual(panes, [['close', 'session-radar']], 'the pane closes and nothing opens in its place')
+for (const id of TAB_IDS) {
+  for (const [cols, maxRows] of [[200, 12], [160, 9], [90, 8], [60, 6]]) {
+    const band = await drawBand(cols, maxRows)
+    findKey(band, 'tab-' + id).onPress()
+    const drawn = await drawBand(cols, maxRows)
+    const rows = rowsOf(drawn)
+    const text = flat(drawn)
+    assert.ok(text.length > 0, `band ${id} drew nothing`)
+    // Config fits in two columns on a wide band of 10 rows or more; otherwise the band scrolls it
+    if (id !== 'config' || (cols >= 130 && maxRows >= 10)) assert.ok(rows <= maxRows, `band ${id} at ${cols}x${maxRows} takes ${rows} rows`)
+    assert.ok(!text.includes('    It also shows'), 'no notes below the transcript')
+    if (PRINT && cols === 160) console.log(`──── band ${id} ${cols}x${maxRows}
+${text}
+`)
+  }
+}
+let band = await drawBand(200, 12)
+findKey(band, 'tab-home').onPress()
+band = await drawBand(200, 12)
+assert.ok(findKey(band, 'top'), 'tabs and actions share a row when both fit')
+assert.ok(findKey(band, 'h-cols'), 'Home takes two columns on a wide band')
+assert.match(flat(findKey(band, 'status')), /ctrl\+x tab for the keys/)
+assert.match(flat(band), /Context/)
+assert.doesNotMatch(flat(band), /Where to look/, 'the tab row already names the tabs')
+// A frame in the badge's color sets the band apart from the transcript, when the rows allow it
+const frame = findKey(band, 'frame')
+assert.equal(frame.borderStyle, 'round')
+assert.match(frame.borderColor, /^(cyan|magenta|blue|green)$/)
+assert.equal(findKey(await drawBand(60, 7), 'frame'), undefined, 'a band of 7 rows keeps them for the radar')
+band = await drawBand(90, 8)
+assert.ok(!findKey(band, 'top') && findKey(band, 'tabs'), 'a narrow band puts them on two rows')
+assert.ok(!findKey(band, 'h-cols'), 'and Home in one column')
+assert.equal(await drawBand(200, 12, { hasSurvey: true }), 'engine band', 'a survey has the band first')
+findKey(band, 'tab-config').onPress()
+assert.ok(findKey(await drawBand(200, 12), 'cfg-cols'), 'Config takes two columns on a wide band')
+assert.match(flat(await drawPane()), /Radar position: below/)
+findKey(band, 'tab-home').onPress()
+// q closes it, /radar opens it again below, without a pane
+await findKey(band, 'close').onPress()
+assert.equal(await drawBand(200, 12), 'engine band')
+panes.length = 0
+await fire('command.run', { command: 'radar' })
+assert.deepEqual(panes, [])
+assert.notEqual(await drawBand(200, 12), 'engine band')
+// The Config row switches back beside the transcript: the pane opens, the band is left alone
+findKey(await drawBand(200, 12), 'tab-config').onPress()
+await findKey(await drawBand(200, 12), 'cfg-position').onPress()
+assert.equal(storedJson('config').position, 'side')
+assert.deepEqual(panes, [['open', 'session-radar']])
+assert.equal(await drawBand(200, 12), 'engine band')
+assert.match(flat(await drawPane()), /Radar position: side/)
+findKey(await drawPane(), 'tab-home').onPress()
+await fire('command.run', { command: 'radar' })
+
+// A reload of the mod (an update, /reload-plugins, a hot reload) carries on from what the session
+// recorded: a fresh copy of the module reads it back from the session's state on its first start
+await fire('turn.start', { turnId: 'r1', text: 'before the reload' })
+await fire('tool.call', { tool: 'Read', file_path: 'a.js' }, async () => ({}))
+await fire('turn.complete', { turnId: 'r1', durationMs: 10 })
+assert.equal(JSON.parse(state.get('session-radar.session')).S.turns.at(-1).prompt, 'before the reload',
+  'the activity is handed over as it ends')
+// A call still running when the old copy goes away, written by the clock once SAVE_MS has passed
+void fire('tool.call', { tool: 'Bash', command: 'sleep 99' }, () => new Promise(() => {}))
+at(2500)
+tick()
+await sleep(5)
+Date.now = realNow
+await fire('command.run', { command: 'radar-export' })
+const beforeReload = JSON.parse(writes.at(-1).text)
+
+const reloaded = []
+const copy = await import('../hooks/register.js?reload')
+copy.register((name, a, b) => reloaded.push({ name, matcher: b ? a : null, fn: b ?? a }))
+const fireCopy = (name, ev, next = async (e) => e) =>
+  reloaded.find((x) => x.name === name && matches(x, ev)).fn($, ev, next)
+await fireCopy('session.start', { cwd: '/work/app' })
+const writesBefore = writes.length
+await fireCopy('command.run', { command: 'radar-export' })
+assert.equal(writes.length, writesBefore + 1)
+const afterReload = JSON.parse(writes.at(-1).text)
+assert.equal(afterReload.startedAt, beforeReload.startedAt, 'the same conversation, not a new one')
+assert.deepEqual(afterReload.totals, beforeReload.totals, 'nothing recorded is lost')
+assert.deepEqual(afterReload.turns, beforeReload.turns)
+assert.equal(afterReload.spans.length, beforeReload.spans.length)
+const cut = afterReload.spans.find((s) => s.label === 'sleep 99')
+assert.equal(cut.status, 'interrupted', 'a call the old copy never saw end is closed, not left running')
+assert.ok(cut.end)
+// New events go on from there, with ids that do not collide
+await fireCopy('turn.start', { turnId: 'r2', text: 'after the reload' })
+await fireCopy('tool.call', { tool: 'Grep', pattern: 'x' }, async () => ({}))
+await fireCopy('turn.complete', { turnId: 'r2', durationMs: 10 })
+await fireCopy('command.run', { command: 'radar-export' })
+const carried = JSON.parse(writes.at(-1).text)
+assert.equal(carried.turns.length, beforeReload.turns.length + 1)
+assert.equal(carried.totals.calls, beforeReload.totals.calls + 1)
+assert.equal(new Set(carried.spans.map((s) => s.id)).size, carried.spans.length, 'span ids stay unique')
+// /clear starts over, and a reload after it does not bring the old conversation back
+await fireCopy('session.end', { reason: 'clear' })
+const third = []
+;(await import('../hooks/register.js?reload2')).register((name, a, b) => third.push({ name, matcher: b ? a : null, fn: b ?? a }))
+const fireThird = (name, ev, next = async (e) => e) => third.find((x) => x.name === name && matches(x, ev)).fn($, ev, next)
+await fireThird('session.start', { cwd: '/work/app' })
+await fireThird('command.run', { command: 'radar-export' })
+assert.equal(JSON.parse(writes.at(-1).text).turns.length, 0)
 
 console.log('session-radar: all checks passed')

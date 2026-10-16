@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.6.0 | 2.1.301 | Terminal | Windows 11, Node 22 | 2026-10-16 |
 | 0.5.1 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.5.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.4.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
@@ -45,8 +46,13 @@ project folder taken from a Windows path. The page's badge, tab title and icon, 
 checked in headless Chrome against a sample snapshot. `claude plugin validate . --strict` passed on
 Claude Code 2.1.300.
 
-**What it does not cover:** a real Claude Code session. Until a row with a `claude --version` is
-here, treat the drawing and the subagent links as unverified on your build. The checks in
+**What the 0.6.0 row adds:** the first run in a real session. On Claude Code 2.1.301, in a
+terminal on Windows 11, the checks in [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) step 3,
+plus the radar moved below with `d`, drawn compact in the band with its frame, and a
+`/reload-plugins` that kept what the radar had recorded. `npm test` passed in English and
+`pt_BR`, and `claude plugin validate . --strict` passed. The Desktop app was not tested.
+
+**What it does not cover:** the Desktop app, and builds other than 2.1.301. The checks in
 [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) are what fills in a row.
 
 ### How to read the columns
@@ -70,6 +76,8 @@ here, treat the drawing and the subagent links as unverified on your build. The 
 | `$.process.spawn`, `$.process.run` and `$.http.fetch`, for the browser view only | Claude Code 2.1.300 (the build it was run on) |
 | `$.ui.status`, `$.session.id` and `$.session.model`, for the session badge | Claude Code 2.1.300 (the build it was validated on) |
 | `$.ui.notify`, `$.fs.read` and `$.store.delete`, for notifications and insights | Claude Code 2.1.300 (the build it was validated and loaded on) |
+| `$.state.get` and `$.state.set`, so a reload of the mod keeps what it recorded | Claude Code 2.1.301 (the build it was validated on) |
+| `AbovePrompt` render site, for the radar below the transcript | Claude Code 2.1.301 (the build it was validated on) |
 
 The browser view also needs Node.js 20 or later on the `PATH`. Without it, `/radar-web` says so and
 the rest of the mod is unaffected.

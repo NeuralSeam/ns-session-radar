@@ -60,10 +60,13 @@ file, not memory, is the source for event and field names.
 2. `claude plugin validate . --strict` reports no errors, and its `hooks:` and `calls:` lines match
    [SECURITY.md](./SECURITY.md).
 3. In a real session with `claude --plugin-dir .`, in a terminal at least 144 columns wide:
-   run a prompt that uses Bash, Read, a subagent and, if one is connected, an MCP tool; check each
-   tab, the spinner, `/radar-export`, `/clear`, and a narrow terminal. In `/radar-config`, turn on
-   both notifications and insights: an activity over the minimum notifies, the cache warning comes
-   once while idle, and the Insights tab and the export show the findings. Run
+   run a prompt that uses Bash, Read, a subagent and, if one is connected, an MCP tool; check the
+   pane's four tabs (Home shows the effort level only when `/config` lists it), the spinner,
+   `/radar-export`, `/clear`, and a narrow terminal. In `/radar-config`, turn on both notifications
+   and insights: an activity over the minimum notifies, the cache warning comes once while idle, and
+   the Insights tab and the export show the findings. Press `w`: the browser view's six views draw,
+   its memory card moves every couple of seconds, the Insights view matches the pane, and a
+   `mark applied` in the pane shows on the page within a second or two. Run
    `/session-radar:radar-review` on the export.
 4. Repeat 3 in the Desktop app's Code tab.
 5. Add a row to [COMPATIBILITY.md](./COMPATIBILITY.md) with `claude --version`, the surface and

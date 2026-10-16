@@ -10,8 +10,19 @@
 ;(() => {
   const I18N = {
     en: {
-      views: { timeline: 'Timeline', activities: 'Activities', agents: 'Agents', api: 'API', summary: 'Summary' },
+      views: { home: 'Home', activities: 'Activities', insights: 'Insights', timeline: 'Timeline', agents: 'Agents', tokens: 'Tokens' },
       kinds: { tool: 'Tools', mcp: 'MCP', web: 'Web', agent: 'Subagents', api: 'Model API' },
+      model: 'Model', effort: (e) => `effort ${e}`, tokens: 'Tokens',
+      tokensSub: (out, hit) => `${out} out · ${hit}% from cache`, tokIn: 'in',
+      memory: 'Memory', memUsed: (used, total) => `${used} used of ${total}`, memFree: (free) => `${free} free`,
+      memChart: (span) => `machine memory · last ${span}`, memWaiting: 'Waiting for the first memory sample.',
+      memMac: 'macOS counts cached memory as used, so free memory looks lower than it is.',
+      insightsOff: 'Insights are off. Turn them on in the terminal, in /radar-config: they read this session and keep per-project counts.',
+      noFindings: 'Nothing to suggest for this session yet.',
+      historyLine: (n) => `History: ${n} earlier ${n === 1 ? 'session' : 'sessions'} of this project`,
+      severity: { high: 'high', medium: 'medium', low: 'low' }, applied: 'applied ✓',
+      trends: 'Since the changes you marked as applied',
+      markHint: 'Made one of these changes? Mark it applied in the terminal (/radar, then 3): later sessions show here whether it paid off.',
       status: { running: 'running', ok: 'done', error: 'failed', denied: 'denied', interrupted: 'interrupted', waiting: 'waiting' },
       statusFilter: { all: 'All', running: 'Running', failed: 'Failed' },
       windows: { all: 'All', '15m': '15 min', '5m': '5 min', '1m': '1 min' },
@@ -40,6 +51,7 @@
       },
       context: 'Context', of: 'of', cost: 'Cost', cache: 'Cache', cacheNote: 'of input read from cache',
       cacheSplit: (r, w) => `${r} read · ${w} written`, limit: 'Limit', resets: 'resets',
+      limitName: { five_hour: '5h window', seven_day: 'Weekly', spend_limit: 'Spend limit' },
       cacheLife: 'Cache lifetime', ttlNote: 'Each request that reads the cache restarts its lifetime.',
       ago: (d) => `last used ${d} ago`, expiresIn: (d) => `expires in ${d}`, expired: (d) => `expired ${d} ago`,
       ifTtl: (a, b) => `${a} left if TTL 5m, ${b} if 1h`, expiredShort: 'expired',
@@ -64,14 +76,25 @@
         w5: 'written, 5m TTL', w1h: 'written, 1h TTL', type: 'Type', parent: 'Parent', calls: 'Calls', recent: 'Recent calls',
         ttl: 'Cache TTL', cacheAt: 'Cache last used', openAgent: 'Open subagent', inTimeline: 'Show in timeline', agentCalls: 'Calls in memory',
       },
-      hint: '1–5 switch views · / search · Esc close',
+      hint: '1–6 switch views · / search · Esc close',
       badgeTip: (code, cwd) => `Session ${code}${cwd ? ` in ${cwd}` : ''}. The same badge shows under the prompt of its terminal while this view is open.`,
       endedTitle: 'ended',
       credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
     },
     pt: {
-      views: { timeline: 'Tempo', activities: 'Atividades', agents: 'Agentes', api: 'API', summary: 'Resumo' },
+      views: { home: 'Início', activities: 'Atividades', insights: 'Insights', timeline: 'Tempo', agents: 'Agentes', tokens: 'Tokens' },
       kinds: { tool: 'Ferramentas', mcp: 'MCP', web: 'Web', agent: 'Subagentes', api: 'API do modelo' },
+      model: 'Modelo', effort: (e) => `esforço ${e}`, tokens: 'Tokens',
+      tokensSub: (out, hit) => `${out} saída · ${hit}% do cache`, tokIn: 'entrada',
+      memory: 'Memória', memUsed: (used, total) => `${used} em uso de ${total}`, memFree: (free) => `${free} livres`,
+      memChart: (span) => `memória da máquina · últimos ${span}`, memWaiting: 'Aguardando a primeira leitura de memória.',
+      memMac: 'O macOS conta a memória em cache como usada, então a memória livre parece menor do que é.',
+      insightsOff: 'Os insights estão desligados. Ligue no terminal, em /radar-config: eles leem esta sessão e guardam contagens por projeto.',
+      noFindings: 'Nada a sugerir para esta sessão por enquanto.',
+      historyLine: (n) => `Histórico: ${n} ${n === 1 ? 'sessão anterior' : 'sessões anteriores'} deste projeto`,
+      severity: { high: 'alta', medium: 'média', low: 'baixa' }, applied: 'aplicado ✓',
+      trends: 'Desde as mudanças marcadas como aplicadas',
+      markHint: 'Fez uma dessas mudanças? Marque como aplicada no terminal (/radar, depois 3): as próximas sessões mostram aqui se compensou.',
       status: { running: 'rodando', ok: 'concluído', error: 'falhou', denied: 'negado', interrupted: 'interrompido', waiting: 'aguardando' },
       statusFilter: { all: 'Todos', running: 'Rodando', failed: 'Com falha' },
       windows: { all: 'Tudo', '15m': '15 min', '5m': '5 min', '1m': '1 min' },
@@ -100,6 +123,7 @@
       },
       context: 'Contexto', of: 'de', cost: 'Custo', cache: 'Cache', cacheNote: 'da entrada lida do cache',
       cacheSplit: (r, w) => `${r} lidos · ${w} gravados`, limit: 'Limite', resets: 'renova',
+      limitName: { five_hour: 'Janela 5h', seven_day: 'Semanal', spend_limit: 'Limite de gasto' },
       cacheLife: 'Vida do cache', ttlNote: 'Cada requisição que lê o cache reinicia a contagem.',
       ago: (d) => `último uso há ${d}`, expiresIn: (d) => `expira em ${d}`, expired: (d) => `expirou há ${d}`,
       ifTtl: (a, b) => `restam ${a} se TTL 5m, ${b} se 1h`, expiredShort: 'expirado',
@@ -124,7 +148,7 @@
         w5: 'gravados, TTL 5m', w1h: 'gravados, TTL 1h', type: 'Tipo', parent: 'Pai', calls: 'Chamadas', recent: 'Últimas chamadas',
         ttl: 'TTL do cache', cacheAt: 'Último uso do cache', openAgent: 'Abrir subagente', inTimeline: 'Ver no tempo', agentCalls: 'Chamadas na memória',
       },
-      hint: '1–5 trocam a visão · / busca · Esc fecha',
+      hint: '1–6 trocam a visão · / busca · Esc fecha',
       badgeTip: (code, cwd) => `Sessão ${code}${cwd ? ` em ${cwd}` : ''}. O mesmo crachá aparece abaixo do prompt do terminal dela enquanto esta visão está aberta.`,
       endedTitle: 'encerrada',
       credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
@@ -132,7 +156,9 @@
   }
 
   const KINDS = ['tool', 'mcp', 'web', 'agent', 'api']
-  const VIEWS = ['timeline', 'activities', 'agents', 'api', 'summary']
+  // The first three match the terminal pane's tabs 1 to 3
+  const VIEWS = ['home', 'activities', 'insights', 'timeline', 'agents', 'tokens']
+  const MEM_KEEP = 300
   const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
   const WINDOW_MS = { '15m': 15 * 60_000, '5m': 5 * 60_000, '1m': 60_000 }
   const STALE_MS = 15_000
@@ -152,9 +178,11 @@
   let pointerDown = false
   let agentsSig = ''
   let shownView = null
+  // The machine's memory, sampled by the local server: { at, total, free }, oldest first
+  let memory = []
 
   const ui = {
-    view: 'timeline',
+    view: 'home',
     search: '',
     kinds: new Set(KINDS),
     status: 'all',
@@ -163,7 +191,7 @@
     selected: null,
     openTurns: new Set(),
     turnsTouched: false,
-    sort: { api: ['start', -1], tools: ['ms', -1] },
+    sort: { tokens: ['start', -1], tools: ['ms', -1] },
     legend: false,
   }
 
@@ -586,39 +614,41 @@
   // API
   // ---------------------------------------------------------------------------
 
-  function apiView() {
+  // One card: a label, a value and, when given, a meter and a line under it
+  function statCard(label, value, { frac = null, sub = null, cls = '' } = {}) {
+    const meterCls = frac == null ? '' : frac > 0.8 ? 'fail' : frac > 0.6 ? 'warn' : ''
+    return h('div', { class: 'stat' },
+      h('div', { class: 'stat-label' }, label),
+      h('div', { class: `stat-value ${cls}` }, value),
+      frac == null ? null : h('div', { class: 'meter' }, meter(frac, meterCls)),
+      sub ? h('div', { class: 'stat-sub' }, sub) : null)
+  }
+
+  const contextCard = (c) => {
+    const p = (c.percent ?? ((c.tokens ?? 0) / (c.window || 1)) * 100) || 0
+    return statCard(T.context, `${p.toFixed(0)}%`, { frac: p / 100, sub: `${fmtTok(c.tokens ?? 0)} ${T.of} ${fmtTok(c.window ?? 0)}` })
+  }
+  const limitCards = (u) => (u?.rateLimits ?? []).map((r) => statCard(T.limitName[r.kind] ?? `${T.limit} ${r.kind}`,
+    `${Math.round(r.percentUsed ?? 0)}%`, { frac: (r.percentUsed ?? 0) / 100, sub: r.resetsAt ? `${T.resets} ${new Date(r.resetsAt).toLocaleString()}` : null }))
+  const costCard = (u) => (typeof u?.costUsd === 'number' ? statCard(T.cost, `US$ ${u.costUsd.toFixed(2)}`) : null)
+
+  function tokensView() {
     const agents = agentsById()
     const out = []
     const t = data.totals
     const u = data.usage
 
-    const stats = []
-    if (u?.context) {
-      const p = (u.context.percent ?? ((u.context.tokens ?? 0) / (u.context.window || 1)) * 100) || 0
-      stats.push(h('div', { class: 'stat' },
-        h('div', { class: 'stat-label' }, T.context),
-        h('div', { class: 'stat-value' }, `${p.toFixed(0)}%`),
-        h('div', { class: 'meter' }, meter(p / 100, p > 80 ? 'fail' : p > 60 ? 'warn' : '')),
-        h('div', { class: 'stat-sub' }, `${fmtTok(u.context.tokens ?? 0)} ${T.of} ${fmtTok(u.context.window ?? 0)}`)))
-    }
-    if (typeof u?.costUsd === 'number') {
-      stats.push(h('div', { class: 'stat' }, h('div', { class: 'stat-label' }, T.cost), h('div', { class: 'stat-value' }, `US$ ${u.costUsd.toFixed(2)}`)))
-    }
     const inputSide = t.tokIn || 1
-    stats.push(h('div', { class: 'stat' },
-      h('div', { class: 'stat-label' }, T.cache),
-      h('div', { class: 'stat-value' }, `${pct(t.cacheRead, inputSide)}%`),
-      h('div', { class: 'meter' }, meter(t.cacheRead / inputSide)),
-      h('div', { class: 'stat-sub' }, `${T.cacheNote} · ${T.cacheSplit(fmtTok(t.cacheRead), fmtTok(t.cacheWrite))}`)))
-    for (const r of u?.rateLimits ?? []) {
-      const p = r.percentUsed ?? 0
-      stats.push(h('div', { class: 'stat' },
-        h('div', { class: 'stat-label' }, `${T.limit} ${r.kind}`),
-        h('div', { class: 'stat-value' }, `${Math.round(p)}%`),
-        h('div', { class: 'meter' }, meter(p / 100, p > 80 ? 'fail' : p > 60 ? 'warn' : '')),
-        r.resetsAt ? h('div', { class: 'stat-sub' }, `${T.resets} ${new Date(r.resetsAt).toLocaleString()}`) : null))
-    }
-    out.push(h('div', { class: 'stats-row' }, stats))
+    out.push(h('div', { class: 'stats-row' },
+      u?.context ? contextCard(u.context) : null,
+      costCard(u),
+      // The cache's meter fills with good news, so it stays the accent colour
+      h('div', { class: 'stat' },
+        h('div', { class: 'stat-label' }, T.cache),
+        h('div', { class: 'stat-value' }, `${pct(t.cacheRead, inputSide)}%`),
+        h('div', { class: 'meter' }, meter(t.cacheRead / inputSide)),
+        h('div', { class: 'stat-sub' }, `${T.cacheNote} · ${T.cacheSplit(fmtTok(t.cacheRead), fmtTok(t.cacheWrite))}`)),
+      limitCards(u)))
 
     out.push(...cacheLife(agents))
 
@@ -649,7 +679,7 @@
       { key: 'dur', label: T.col.duration, cls: 'r num', width: '80px', value: (sp) => (sp.end ?? t1) - sp.start, cell: (sp) => h('span', live(sp), fmtDur((sp.end ?? t1) - sp.start)) },
       { key: 'status', label: T.col.status, width: '104px', value: (sp) => spanState(sp), cell: (sp) => statusEl(spanState(sp)) },
     ]
-    out.push(sortableTable('api', cols, apiSpans, (sp) => ({
+    out.push(sortableTable('tokens', cols, apiSpans, (sp) => ({
       class: `${isSelected('span', sp.id) ? 'selected' : ''} ${apiNumbers(sp).miss ? 'miss' : ''} ${isFailed(spanState(sp)) ? 'failed' : ''}`,
       onclick: () => select({ type: 'span', id: sp.id }),
     })))
@@ -762,22 +792,41 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Summary
+  // Home: the session at a glance, the machine's memory, then where the time went
   // ---------------------------------------------------------------------------
 
-  function summaryView() {
+  const GB = 1024 ** 3
+  const fmtBytes = (n) => (n >= GB ? `${(n / GB).toFixed(1)}G` : `${Math.round(n / 1024 ** 2)}M`)
+
+  function homeView() {
     const out = []
     const t = data.totals
+    const u = data.usage
+    const b = data.session ?? {}
     const t1 = now()
     const doneTurns = data.turns.filter((x) => x.end)
     const avg = doneTurns.length ? doneTurns.reduce((n, x) => n + (x.end - x.start), 0) / doneTurns.length : 0
-    const stat = (label, value, cls = '') => h('div', { class: 'stat' }, h('div', { class: 'stat-label' }, label), h('div', { class: `stat-value ${cls}` }, value))
+    const mem = memory.at(-1)
+
     out.push(h('div', { class: 'stats-row' },
+      statCard(T.model, b.model ?? '—', { sub: b.effort ? T.effort(b.effort) : null, cls: 'stat-text' }),
+      u?.context ? contextCard(u.context) : null,
+      statCard(T.tokens, `${fmtTok(t.tokIn)} ${T.tokIn}`, { sub: T.tokensSub(fmtTok(t.tokOut), pct(t.cacheRead, t.tokIn || 1)) }),
+      costCard(u),
+      limitCards(u),
+      mem ? statCard(T.memory, `${pct(mem.total - mem.free, mem.total)}%`, {
+        frac: (mem.total - mem.free) / mem.total, sub: T.memUsed(fmtBytes(mem.total - mem.free), fmtBytes(mem.total)),
+      }) : null))
+
+    out.push(sectionTitle(T.memory, mem ? T.memFree(fmtBytes(mem.free)) : null))
+    out.push(memory.length > 1 ? memChart() : empty(T.memWaiting))
+    if (/Macintosh|Mac OS X/i.test(navigator.userAgent)) out.push(h('p', { class: 'note' }, T.memMac))
+
+    const stat = (label, value, cls = '') => statCard(label, value, { cls })
+    out.push(h('div', { class: 'stats-row spaced' },
       stat(T.sessionTime, fmtDur(t1 - Date.parse(data.startedAt))),
       stat(T.turnsLabel, fmtInt(data.turns.length)),
       stat(T.avgTurn, fmtDur(avg)),
-      stat(T.inputTokens, fmtTok(t.tokIn)),
-      stat(T.outputTokens, fmtTok(t.tokOut)),
       stat(T.failures, fmtInt(t.errors + t.denied), t.errors + t.denied ? 'tx-fail' : '')))
 
     out.push(sectionTitle(T.byKind))
@@ -859,6 +908,73 @@
       }))
     })
     return chartBox(svgEl, null)
+  }
+
+  // The share of the machine's memory in use over the samples kept, as an area from 0 to 100%
+  function memChart() {
+    const W = chartWidth()
+    const H = 96
+    const left = 46
+    const plotW = W - left
+    const pts = memory.map((m) => ({ at: m.at, used: (m.total - m.free) / m.total }))
+    const t0 = pts[0].at
+    const span = Math.max(1, pts.at(-1).at - t0)
+    const x = (at) => left + ((at - t0) / span) * plotW
+    const y = (f) => H - f * H
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.at).toFixed(1)},${y(p.used).toFixed(1)}`).join('')
+    const svgEl = s('svg', { viewBox: `0 0 ${W} ${H + 14}`, height: H + 14, role: 'img', 'aria-label': T.memory })
+    const axis = s('g', { class: 'axis' })
+    for (const f of [0, 0.5, 1]) {
+      axis.append(s('line', { x1: left, x2: W, y1: y(f), y2: y(f) }), s('text', { x: left - 6, y: y(f) + 3, 'text-anchor': 'end' }, `${f * 100}%`))
+    }
+    svgEl.append(axis,
+      s('path', { class: 'mem-area', d: `${line}L${x(pts.at(-1).at).toFixed(1)},${H}L${left},${H}Z` }),
+      s('path', { class: 'mem-line', d: line }),
+      s('text', { x: left, y: H + 12, class: 'axis-label' }, T.memChart(fmtDur(span))))
+    // One target over the plot: the sample nearest the pointer goes in the tooltip
+    svgEl.append(s('rect', {
+      class: 'hit mem', x: left, y: 0, width: plotW, height: H,
+      onmousemove: (ev) => {
+        const r = ev.currentTarget.getBoundingClientRect()
+        const at = t0 + ((ev.clientX - r.left) / r.width) * span
+        const m = memory.reduce((best, s1) => (Math.abs(s1.at - at) < Math.abs(best.at - at) ? s1 : best))
+        showTip(ev, fmtClock(m.at), [
+          [T.memory, `${pct(m.total - m.free, m.total)}%`], ['', T.memUsed(fmtBytes(m.total - m.free), fmtBytes(m.total))],
+        ])
+      },
+      onmouseleave: hideTip,
+    }))
+    return chartBox(svgEl, null)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Insights, read-only: the mod sends them with their texts; marking stays in the terminal
+  // ---------------------------------------------------------------------------
+
+  function insightsView() {
+    const v = data.insightsView
+    if (!v) return [empty(T.insightsOff)]
+    const out = []
+    if (v.history) out.push(h('p', { class: 'note' }, T.historyLine(v.history)))
+    const q = ui.search.trim().toLowerCase()
+    const list = v.findings.filter((f) => !q || `${f.title} ${f.hint}`.toLowerCase().includes(q))
+    if (!v.findings.length) out.push(empty(T.noFindings))
+    else if (!list.length) out.push(empty(T.emptyFiltered))
+    else {
+      out.push(h('div', { class: 'findings' }, list.map((f) => h('div', { class: `finding sev-${f.severity}` },
+        h('div', { class: 'finding-head' },
+          h('span', { class: 'sev' }, T.severity[f.severity] ?? f.severity),
+          h('span', { class: 'finding-title' }, f.title),
+          f.applied ? h('span', { class: 'applied' }, T.applied) : null),
+        h('div', { class: 'finding-hint' }, f.hint)))))
+    }
+    if (v.trends.length) {
+      out.push(sectionTitle(T.trends))
+      out.push(h('ul', { class: 'trends' }, v.trends.map((t) => h('li', { class: t.better ? 'better' : null }, t.text))))
+    }
+    out.push(h('p', { class: 'note' }, T.markHint))
+    if (v.aiHint) out.push(h('p', { class: 'note ai-hint' }, v.aiHint))
+    return out
   }
 
   // ---------------------------------------------------------------------------
@@ -1039,11 +1155,12 @@
 
   function renderNav() {
     const counts = data ? {
-      timeline: data.spans.length,
+      home: null,
       activities: data.turns.length,
+      insights: data.insightsView ? data.insightsView.findings.length : null,
+      timeline: data.spans.length,
       agents: data.agents.length - 1,
-      api: data.totals.api,
-      summary: null,
+      tokens: data.totals.api,
     } : {}
     $('nav').replaceChildren(...VIEWS.map((v, i) => h('button', {
       type: 'button',
@@ -1074,8 +1191,8 @@
     const search = $('search')
     search.placeholder = T.search
     $('kinds').hidden = !(v === 'timeline' || v === 'activities')
-    $('statuses').hidden = !(v === 'timeline' || v === 'activities' || v === 'api')
-    $('agent-filter').hidden = !(v === 'timeline' || v === 'api')
+    $('statuses').hidden = !(v === 'timeline' || v === 'activities' || v === 'tokens')
+    $('agent-filter').hidden = !(v === 'timeline' || v === 'tokens')
     $('windows').hidden = v !== 'timeline'
 
     segButtons('kinds', KINDS.filter((k) => v !== 'activities' || k !== 'api').map((k) => [k, T.kinds[k], `var(--k-${k})`]),
@@ -1137,9 +1254,10 @@
     if (!data) content = [empty(conn === 'noToken' || conn === 'unauthorized' || conn === 'ended' ? T.conn[conn] : T.emptyWaiting)]
     else if (ui.view === 'timeline') content = timelineView()
     else if (ui.view === 'activities') content = activitiesView()
+    else if (ui.view === 'insights') content = insightsView()
     else if (ui.view === 'agents') content = agentsView()
-    else if (ui.view === 'api') content = apiView()
-    else content = summaryView()
+    else if (ui.view === 'tokens') content = tokensView()
+    else content = homeView()
     view.replaceChildren(...content.filter(Boolean))
     // The timeline follows the newest call while the view sits at its end
     view.scrollTop = ui.view === 'timeline' && atBottom ? view.scrollHeight : top
@@ -1158,7 +1276,7 @@
     tickLive()
     if (!canRender()) return
     const running = data.spans.some((sp) => !sp.end)
-    const clockBound = (ui.view === 'timeline' && running) || ui.view === 'api'
+    const clockBound = (ui.view === 'timeline' && running) || ui.view === 'tokens'
     if (dirty || (clockBound && ticks % 5 === 0)) render()
   }, 1000)
 
@@ -1211,6 +1329,19 @@
         receive(ev.data)
       } catch {
         // A snapshot that does not parse is skipped; the next one replaces it
+      }
+    })
+    // Memory samples from the server: the ones so far on connecting, then one at a time. Only newer
+    // ones are kept, so a reconnect does not repeat them; Home redraws on the next tick.
+    es.addEventListener('system', (ev) => {
+      try {
+        for (const m of JSON.parse(ev.data).memory ?? []) {
+          if (m.total > 0 && (!memory.length || m.at > memory.at(-1).at)) memory.push(m)
+        }
+        if (memory.length > MEM_KEEP) memory = memory.slice(-MEM_KEEP)
+        if (ui.view === 'home') dirty = true
+      } catch {
+        // A sample that does not parse is skipped
       }
     })
     es.addEventListener('bye', () => {
@@ -1289,7 +1420,7 @@
     if (ev.key === '/') {
       ev.preventDefault()
       $('search').focus()
-    } else if (/^[1-5]$/.test(ev.key)) {
+    } else if (/^[1-6]$/.test(ev.key)) {
       ui.view = VIEWS[Number(ev.key) - 1]
       remember()
       render()
@@ -1303,7 +1434,7 @@
     const w = Math.round(entry.contentRect.width)
     if (Math.abs(w - lastWidth) < 4) return
     lastWidth = w
-    if (ui.view !== 'api' && ui.view !== 'summary') return
+    if (ui.view !== 'tokens' && ui.view !== 'home') return
     clearTimeout(resizeTimer)
     resizeTimer = setTimeout(render, 100)
   }).observe($('view'))

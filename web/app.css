@@ -506,7 +506,7 @@ table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .agent-name { display: flex; align-items: center; gap: 6px; padding-left: calc(var(--depth, 0) * 16px); min-width: 0; }
 .agent-name strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 
-/* ---- API & summary ---------------------------------------------------- */
+/* ---- Stats, tokens and charts ----------------------------------------- */
 
 .stats-row {
   display: grid;
@@ -550,6 +550,28 @@ table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .legend-text { margin: 0 0 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .legend-text div { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 3px 0; color: var(--text-2); font-size: 12px; }
 .legend-text b { font-family: var(--mono); font-weight: 400; color: var(--text); }
+
+/* ---- Home & insights -------------------------------------------------- */
+
+.stats-row.spaced { margin-top: 18px; }
+.stat-value.stat-text { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart .mem-area { fill: var(--accent-soft); }
+.chart .mem-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.chart rect.hit.mem, .chart rect.hit.mem:hover { fill: transparent; cursor: crosshair; }
+
+.findings { display: flex; flex-direction: column; gap: 8px; }
+.finding { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: inset 3px 0 0 var(--sev, var(--text-3)); }
+.finding.sev-high { --sev: var(--fail); }
+.finding.sev-medium { --sev: var(--warn); }
+.finding-head { display: flex; align-items: baseline; gap: 10px; }
+.finding .sev { flex: none; color: var(--sev, var(--text-3)); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.finding-title { min-width: 0; }
+.finding .applied { margin-left: auto; flex: none; color: var(--ok); font-size: 12px; }
+.finding-hint { margin-top: 4px; color: var(--text-2); font-size: 12px; }
+.trends { margin: 0; padding: 10px 14px 10px 30px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text-2); }
+.trends li { padding: 2px 0; }
+.trends li.better { color: var(--ok); }
+.note.ai-hint { color: var(--accent-text); }
 
 /* ---- Tooltip ---------------------------------------------------------- */
 

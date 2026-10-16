@@ -14,7 +14,8 @@ Every hook below receives the event as Claude Code raises it, so the mod sees:
   commands and file paths;
 - the token counts of every request to the model;
 - when turns and subagents start and end, and the text each turn starts with;
-- context use, cost and plan limits from `$.session.usage()`.
+- context use, cost and plan limits from `$.session.usage()`;
+- the session's model, and the effort level when `/config` lists it.
 
 Of the prompts you type it keeps only the start, to name each activity (below). It does **not**
 read Claude's replies, tool results, environment variables or settings. The one file it reads is the
@@ -30,13 +31,18 @@ token counts; for each prompt you send, its first 120 characters on one line, pl
 counts. At most 500 calls and 200 prompts; older ones are dropped. All of it is gone when the
 session ends, or on `/clear`, `/resume`, `/branch`, or the `x` key in the pane.
 
+A copy of the same record is handed to Claude Code's session state (`$.state`, key
+`session-radar.session`), also in memory, so a reload of the mod (an update, `/reload-plugins`)
+carries on instead of starting over. It holds nothing the record above does not, is written at most
+every 2 seconds while something changed, and ends with the session.
+
 Between sessions, in its own store (a JSON file Claude Code keeps for the mod under your
 configuration directory):
 
 | Key | What it holds | When |
 | --- | --- | --- |
 | `language` | `auto`, `pt` or `en` | Always, once you pick one |
-| `config` | The settings of the Config tab: seven on/off or number values | Once you change one |
+| `config` | The settings of the Config tab: on/off or number values, and the radar's position (`side` or `bottom`) | Once you change one |
 | `history` | Per project folder, for each of the last 30 sessions in at most 20 projects: counts of activities, calls, failures and denials; tokens and cache; the size of the first request; the highest context use; time and failures per tool name; the names of the MCP servers called; and, for each failing command, its tool and **first two words** (for example `Bash npm test`). Also the time and rule of each change you marked as applied | Only while insights are on. `Delete the stored history` in Config removes the key |
 
 The history holds no prompt text, no tool argument beyond those first two words of a failing
@@ -54,16 +60,18 @@ same list from the code, under `calls:`.
 | Call | Why |
 | --- | --- |
 | `$.command.register` | Adds `/radar`, `/radar-export`, `/radar-lang`, `/radar-web` and `/radar-config` |
-| `$.ui.open`, `$.ui.close`, `$.ui.resolve`, `$.ui.invalidate` | Opens, draws and redraws the pane and the spinner suffix |
+| `$.ui.open`, `$.ui.close`, `$.ui.resolve`, `$.ui.invalidate` | Opens, draws and redraws the pane, the band above the prompt when the radar is placed below, and the spinner suffix |
+| `$.state.get`, `$.state.set` | Keeps a copy of what the radar recorded in the session's state, so a reload of the mod does not lose it; read once, when the reloaded mod starts |
 | `$.ui.toast` | Says where an export went, and that the history was deleted |
 | `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
 | `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |
-| `$.session.model` | While the browser view runs, to name the model beside the badge on the page |
+| `$.session.model` | Names the model on the Home tab, and beside the badge on the page while the browser view runs |
+| `$.config.list` | While the Home tab is drawn or the browser view runs, at most every 5 seconds, to find the `/config` row that holds the effort level. The session API does not report it. Only that row's value is kept, in memory; the other rows are not read further, kept or sent |
 | `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument |
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
-| `$.session.usage` | Reads context, cost and plan limits for the API tab; with insights on, also when an activity ends, to keep the highest context use |
+| `$.session.usage` | Reads context, cost and plan limits for the Home tab and the browser view; with insights on, also when an activity ends, to keep the highest context use |
 | `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
-| `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e` |
+| `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
 | `$.store.get`, `$.store.set` | Reads the language, the settings and, with insights on, the history when the session starts; writes the language when you change it, the settings when you change one, and the history when an activity or the session ends while insights are on |
 | `$.store.delete` | Removes the history when you press `Delete the stored history` |
 | `$.process.spawn` | Starts `node web/server.mjs`, **only** when you run `/radar-web` or press `w` |
@@ -91,8 +99,15 @@ so is any request carrying another site's `Origin`. The page is static, served w
 
 It keeps the last snapshot in memory and nothing on disk. The snapshot holds what
 [What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, the
-folder it runs in and its model, so the page can tell parallel sessions apart. Anyone who has the URL, on this
-machine, can read it while the server runs; treat the URL like the export file. The server stops on
+folder it runs in, its model and effort level, so the page can tell parallel sessions apart, and,
+while insights are on, the findings and comparisons as the Insights tab words them. Anyone who has
+the URL, on this machine, can read it while the server runs; treat the URL like the export file.
+
+While it runs, the server also reads the machine's total and free memory every 2 seconds, with
+Node's `os.totalmem()` and `os.freemem()`, keeps the last 10 minutes of those two numbers in memory
+and sends them only to the page. It does not list processes, read other processes' memory or run
+any command. The page itself still only reads: it sends nothing to the server but the requests for
+the data, and cannot change the mod's settings or marks. The server stops on
 `/radar-web stop`, when the mod is unloaded or Claude Code exits, and on its own after 30 seconds
 without a snapshot from the mod.
 
@@ -107,7 +122,10 @@ change no file without your confirmation. Read the file before you run it; it is
 
 ## The export file
 
-`/radar-export` writes JSON into the folder Claude Code is running in. It contains the tool
+`/radar-export` writes JSON into the folder Claude Code is running in. With `Save the export
+automatically` on in Config (off by default), the same file is also written, without asking, each
+time an activity ends: one file per conversation, `session-radar-<when it started>.json`, rewritten
+with the whole conversation so far. It contains the tool
 arguments and prompt beginnings described above, which can include a secret if one was typed into a
 shell command or a prompt. With insights on, it also holds the findings, the project's history and
 the names of the MCP servers in `.mcp.json`. Treat

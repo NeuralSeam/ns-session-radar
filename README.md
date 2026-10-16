@@ -13,7 +13,8 @@ Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 
 > **This is a mod, which means it is code.** It runs inside Claude Code with your permissions and
 > sees every prompt and tool call in the session. It sends nothing off your machine and calls no
-> model; the only file it writes is the one you ask for with `/radar-export`. Between sessions it
+> model; the only file it writes is the export: when you ask for it with `/radar-export`, or after
+> each activity if you turn that on. Between sessions it
 > keeps your language and settings and, only if you turn insights on, counts per project with no
 > prompt or argument in them. Notifications are off until you turn them on. The browser view, when
 > you open it, is served from `127.0.0.1` alone, behind a random token. [SECURITY.md](./SECURITY.md) lists
@@ -25,18 +26,39 @@ Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 
 ## What it shows
 
-**1 · Timeline.** A Gantt-style view: each row is one thing Claude did, placed where it started and
-as wide as it took. A subagent's own calls sit indented under the call that started it. Yellow `▓`
-is still running; red failed or was denied.
+The radar has two places. **The pane in the terminal** keeps what you read at a glance or act on
+right away: the session's numbers, the activities, the suggestions and the settings. **The browser
+view** adds what needs room to read: the timeline, the agents, every request with its cache, charts
+and the machine's memory. Press `h` on any tab of the pane for a few lines on how to read it.
+
+### In the terminal
+
+**1 · Home**, where the pane opens. The session at a glance: the model and its effort level, how
+full the context is, the tokens in and out with the share served from the cache, the cost, how much
+of the 5-hour and weekly plan limits is used, with when each starts over, and when the main
+session's cache expires. Below, one line per tab, with how much there is once there is something,
+and what only the browser shows.
 
 ```
-✦ sonnet-5-5     main                     █·······································    2.1s
-⚙ Bash           npm test                 ··█████████████·························   11.4s
-◆ Agent          map the auth module      ·················███████████████████████   38.0s
- ↳⚙ Grep         login                    ··················█·····················    0.3s
- ↳⇄ github·sear… auth bug                 ····················████················    4.9s
-◎ WebFetch       https://example.com/docs ·······································▓  running
+Model       opus-5-5 · effort high
+Context     ██████████░░░░░░░░░░░░░░ 42%  84.0k of 200.0k
+Tokens      1.2M in (88% from cache) · 41.0k out · US$ 3.10
+5h window   ███████░░░░░░░░░░░░░░░░░ 31%  resets at 15:40
+Weekly      ████░░░░░░░░░░░░░░░░░░░░ 18%  resets Mon 09:00
+Cache       expires in 52m10s · if it expires: ~84.0k tok rewritten
+
+Where to look
+2 Activities  6 activities · each prompt and the tools it called
+3 Insights    2 suggestions for this project's setup
+4 Config      notifications, insights, auto export, badge, language
+w Browser     38 calls, 24 requests · timeline, agents, tokens, memory
 ```
+
+The effort level comes from the `/config` row that holds it; when your build lists none, the line
+shows the model alone. Accounts without plan limits (an API key) see a line saying so. The cache
+line counts from the main session's last request that read or wrote the cache, with the TTL the
+request reported; when your build does not pass the TTL on to mods, it shows the time left under
+both 5 minutes and 1 hour.
 
 **2 · Activities.** One line per prompt you sent: its first 120 characters, how long it took, how
 many tools it called and how many failed. The newest is open; Tab or the arrows move between them
@@ -53,32 +75,7 @@ started (counted from the prompt), its argument, how long it took and whether it
      +13.9s  ↳⚙ Grep           login                                              0.3s
 ```
 
-**3 · Agents.** The tree of the main session and its subagents: status, duration, tool calls,
-model requests, tokens in and out, and the last three things each one did.
-
-**4 · API.** How full the context is, cost, plan limits, how much input came from the prompt cache,
-how long the cache has left, a sparkline of output tokens per request, and a table of every request.
-Press `h` in this tab for the meaning of each column:
-
-| Column | What it is |
-| --- | --- |
-| `new` | Input tokens the cache did not serve, billed at the full input price. Small on a healthy request: only what changed since the last one. |
-| `cache↓` | Input tokens read from the prompt cache, far cheaper than new input. Most of a long conversation should land here. |
-| `cache↑` | Input tokens written to the cache. They cost more than new input once, then the next request reads them cheaply. |
-| `prompt` | `new + cache↓ + cache↑`: everything the request sent. It grows with the conversation. |
-| `hit%` | `cache↓ ÷ prompt`. A **yellow** row sent most of a large prompt uncached after the loop's first request: the cache was probably lost, because it expired, the model changed, or the start of the prompt changed. |
-
-**Cache lifetime.** For the main session and the most recent subagent: the TTL of what was cached,
-when the cache was last used, how long it has left, and how many tokens the next request rewrites
-if it expires. The API restarts an entry's lifetime every time a request reads it, so the countdown
-runs from the last request. The TTL comes from the request itself, which says how much it wrote for
-5 minutes and how much for 1 hour. When your Claude Code build does not pass that on to mods, the
-radar shows the time left under both.
-
-**5 · Summary.** How much of each kind of activity there was, and which tools the time went to,
-with their failures.
-
-**6 · Insights.** Off until you turn it on in Config. Fixed rules read what the radar recorded and
+**3 · Insights.** Off until you turn it on in Config. Fixed rules read what the radar recorded and
 suggest changes to how Claude Code is set up, most severe first, each with the numbers behind it:
 
 | Rule | What it looks for | What it suggests |
@@ -95,9 +92,10 @@ suggest changes to how Claude Code is set up, most severe first, each with the n
 | Unused MCP, unreliable MCP | A server in `.mcp.json` not called in 5 sessions; one that fails or is slow | Disabling or fixing it |
 
 Each finding has a `mark applied` button. Press it once you have made the change, and the tab
-compares the rule's number per session before and after, so you can see whether it paid off.
+compares the rule's number per session before and after, so you can see whether it paid off. The
+browser view shows the same findings and comparisons, read-only: marking is done here.
 
-**7 · Config.** Everything that notifies or keeps data starts off. Move with Tab or the arrows, and
+**4 · Config.** Everything that notifies or keeps data starts off. Move with Tab or the arrows, and
 press Enter to change a line:
 
 | Setting | What it does |
@@ -106,6 +104,7 @@ press Enter to change a line:
 | Warn before the cache expires | One notification per cache entry, 30 s to 5 min before the main session's cache expires, while nothing is running: how long is left and how many tokens the next request would rewrite. An unknown TTL counts as 5 minutes, and the text says so |
 | Insights, with per-project history | Turns on the Insights tab and keeps counts per project between sessions (below) |
 | Suggest the AI review | Shows the [AI review](#ai-review) in the Insights tab |
+| Save the export automatically when an activity ends | Writes the export after each activity, without asking: one `session-radar-<start>.json` per conversation in the current folder, rewritten each time with the whole conversation, ready for the [AI review](#ai-review). Add `session-radar-*.json` to your `.gitignore` |
 | Always show this session's badge | Keeps the session's badge under the prompt even with the browser view closed. See [Browser view](#browser-view) |
 | Delete the stored history | Deletes every project's history |
 | Language | auto, Portuguese or English |
@@ -122,8 +121,55 @@ each failing command. No prompt and no argument. It also reads the server names 
 `~/.claude.json`, which a mod cannot read, so the unused-MCP rule does not see them.
 
 The interface is in English or Brazilian Portuguese. Pick one with `/radar-lang pt`,
-`/radar-lang en` or `/radar-lang auto`, or press `l` in the pane to cycle through them. `auto`, the
-default, follows your system language. The choice is kept for your next sessions.
+`/radar-lang en` or `/radar-lang auto`, or with the Language line in Config. `auto`, the default,
+follows your system language. The choice is kept for your next sessions, and the browser view
+follows it.
+
+### In the browser
+
+Press `w` in the pane or run `/radar-web` ([Browser view](#browser-view) says how it is kept local).
+Keys `1` to `6` switch view; the first three match the pane's.
+
+**1 · Home.** The session's cards (model and effort, context, tokens, cost, plan limits) and the
+**machine's memory**: how much is in use, of how much, and a chart of the last 10 minutes. Below,
+calls by kind, the duration of each activity (press a bar to open it in Activities) and the time
+per tool. The memory is read by the browser view's own server, every 2 seconds, from the operating
+system's totals: no process list and no command. macOS counts cached memory as used, so free memory
+looks lower there than it is.
+
+**2 · Activities** and **3 · Insights.** The same as in the pane, with room: filters, search and
+every call of an activity; the findings with their hints, what you marked as applied and the
+comparisons since.
+
+**4 · Timeline.** A Gantt-style view: each row is one thing Claude did, placed where it started and
+as wide as it took, on a time axis you can narrow to the last 15, 5 or 1 minute. A subagent's own
+calls sit indented under the call that started it. A running call is marked at its edge; red failed
+or was denied. Press a row for every detail of the call.
+
+**5 · Agents.** The tree of the main session and its subagents: status, duration, tool calls,
+model requests, tokens in and out, and the last things each one did. Press one for its calls.
+
+**6 · Tokens.** How full the context is, cost, plan limits, how much input came from the prompt
+cache, how long each loop's cache has left, a chart of the prompt per request split into cache
+read, cache written and new input, with the output below, and a table of every request.
+`What the columns mean` explains them:
+
+| Column | What it is |
+| --- | --- |
+| `New` | Input tokens the cache did not serve, billed at the full input price. Small on a healthy request: only what changed since the last one. |
+| `Cache↓` | Input tokens read from the prompt cache, far cheaper than new input. Most of a long conversation should land here. |
+| `Cache↑` | Input tokens written to the cache. They cost more than new input once, then the next request reads them cheaply. |
+| `Prompt` | `New + Cache↓ + Cache↑`: everything the request sent. It grows with the conversation. |
+| `Hit` | `Cache↓ ÷ Prompt`. A **highlighted** row sent most of a large prompt uncached after the loop's first request: the cache was probably lost, because it expired, the model changed, or the start of the prompt changed. |
+
+**Cache lifetime.** For each loop: the TTL of what was cached, when the cache was last used, how
+long it has left, and how many tokens the next request rewrites if it expires. The API restarts an
+entry's lifetime every time a request reads it, so the countdown runs from the last request. The
+TTL comes from the request itself, which says how much it wrote for 5 minutes and how much for 1
+hour.
+
+Without Node, or without a browser on the same machine (a plain SSH session, some containers), the
+timeline, the agents and the tokens are still in the export (`/radar-export`).
 
 ## Requirements
 
@@ -167,14 +213,23 @@ Inside the pane:
 
 | Key | What it does |
 | --- | --- |
-| `1` to `7` | Switch tab: Timeline, Activities, Agents, API, Summary, Insights, Config |
+| `1` to `4` | Switch tab: Home, Activities, Insights, Config |
 | Tab, `↑` `↓`, Enter | In Activities, move between activities and open one |
-| `h` | In API, show or hide what each column means |
-| `l` | Cycle the language: auto, Portuguese, English |
+| `h` | Show or hide how to read the tab |
 | `w` | Open the browser view, same as `/radar-web` |
 | `e` | Export, same as `/radar-export` |
-| `x` | Clear what has been recorded |
+| `x` | Clear what has been recorded: press it twice within 3 seconds |
+| `d` | Move the radar below the transcript, or back beside it |
 | `Esc` | Close the pane |
+
+**Beside or below**, as DevTools docks: `d`, or *Radar position* in Config, kept for your next
+sessions. Beside, the radar is a pane, which Claude Code docks next to the transcript in fullscreen
+from 110 columns, and seats above the prompt otherwise. Below, it takes the band above the prompt,
+compact: tabs and actions on one row when they fit, Home and Config in two columns on a wide
+terminal, no notes or blank lines, in a rounded frame of the badge's color that sets it apart from
+the transcript (from 8 rows; under that the rows go to the radar). The band takes the keys after `ctrl+x tab` or a click, `q` closes
+it, and a survey from Claude Code has the band first. A mod cannot place a pane itself, so there is
+no left side.
 
 The radar starts over on `/clear`, `/resume` and `/branch`, because those start a different
 conversation. What it recorded is not kept between sessions unless you export it, or, with insights
@@ -183,7 +238,8 @@ on, as the counts of the [history](#what-it-shows).
 ## AI review
 
 The rules in the Insights tab find patterns and measure them; they do not write your CLAUDE.md. The
-plugin also ships a skill for that, `/session-radar:radar-review`. Export first (`e`), then run it.
+plugin also ships a skill for that, `/session-radar:radar-review`. Export first (`e`), or turn on
+`Save the export automatically` in Config, then run it.
 Claude, in your session and with your permissions, reads the newest `session-radar-*.json`, your
 CLAUDE.md, the `permissions`, `model` and `hooks` of your settings, and `.mcp.json`, and proposes
 changes as diffs, each with the numbers behind it and the radar metric that should move. It also
@@ -204,11 +260,12 @@ Press `w` in the pane (`/radar` opens it with the focus), or run `/radar-web`. T
 small server, `web/server.mjs` (Node, no dependencies), and your default browser opens on it. The
 reply and the pane also show the address as a link, for when no browser can be opened.
 
-The page has the same five areas as the pane's first five tabs, Timeline, Activities, Agents, API
-and Summary (Insights and Config stay in the pane), plus a search box, filters by kind, status,
-agent and time window, sortable tables, charts of the prompt per request (cache read, cache written,
-new) and of each activity's duration, and a panel with every detail of
-a call or subagent. Keys: `1` to `5` switch area, `/` searches, `Esc` closes the panel.
+The page has six views, described under [In the browser](#in-the-browser): Home with the
+machine's memory, Activities and Insights as in the pane, and Timeline, Agents and Tokens, which
+only the browser shows. Config stays in the pane, and so does marking a finding as applied: the page
+only reads. It adds a search box, filters by kind, status, agent and time window, sortable tables,
+charts and a panel with every detail of a call or subagent. Keys: `1` to `6` switch view, `/`
+searches, `Esc` closes the panel.
 
 **Several sessions at once.** Each session has a badge: a mark and a four-letter code, such as
 `▲ K7QF`, in one of four colours, worked out from the session's id, so it stays the same when the
@@ -231,8 +288,9 @@ How it is kept local:
 - The data needs a random token that only the URL you were given carries; sending data needs a
   second token only the mod knows. The page loads nothing from elsewhere (a `Content-Security-Policy`
   of `'self'`).
-- It holds only the last snapshot, in memory. It ends with `/radar-web stop`, when Claude Code
-  exits or reloads the mod, and by itself 30 seconds after the mod stops sending.
+- It holds only the last snapshot and the last 10 minutes of memory samples, in memory. It ends
+  with `/radar-web stop`, when Claude Code exits or reloads the mod, and by itself 30 seconds after
+  the mod stops sending.
 
 The `w` key works while the pane has the focus, not while you type at the prompt: a mod cannot take
 a plain letter from the prompt. If Node is missing, `/radar-web` says so and everything else keeps
