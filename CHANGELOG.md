@@ -8,6 +8,19 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+### Fixed
+
+- **Notifications that showed nothing.** Where Claude Code's notification channel shows no text (no
+  channel under `auto`, as in Windows Terminal, or only the bell), a notification from the radar
+  went nowhere. It now shows as a toast in the corner of the transcript; a `Notification` hook of
+  yours that answers for it still keeps it out.
+
+### Added
+
+- Browser view: **the radar's notifications on the page.** Each one shows as a toast, and, once you
+  press *Turn on browser notifications* in the footer and allow it, as your system's notification
+  while the tab is in the background. Opening the page does not replay earlier ones.
+
 ### Changed
 
 - Below the transcript, the band no longer shows the browser view's address beside `w Web`: it

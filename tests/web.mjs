@@ -233,6 +233,7 @@ assert.equal(badge.model, 'sonnet-5-5')
 // Only the effort's value from the /config rows; insights are off, so the page gets none of them
 assert.equal(badge.effort, 'medium')
 assert.equal(state.insightsView, null)
+assert.deepEqual(state.notices, [], 'no notifications while they are off')
 // The release, for the page's footer
 const { version } = JSON.parse(await import('node:fs').then((fs) => fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')))
 assert.equal(state.version, version)
@@ -278,6 +279,23 @@ assert.match(denial.hint, /permissions\.deny/)
 assert.equal(denial.applied, false)
 assert.deepEqual(state.insightsView.trends, [])
 assert.equal(state.insightsView.aiHint, null)
+
+// A notification reaches the page too, numbers only, for it to show as a toast or the browser's own.
+// This Claude Code has no notification channel, so the terminal gets a toast
+await findKey(await drawPane(), 'cfg-notifyDone').onPress()
+await fire('turn.start', { turnId: 't2', text: 'secret prompt' })
+await fire('turn.complete', { turnId: 't2', durationMs: 45_000 })
+assert.ok(await waitFor(async () => {
+  state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+  return state.notices?.length === 1
+}, 3000), 'the notification reaches the page')
+const [notice] = state.notices
+assert.equal(notice.kind, 'done')
+assert.ok(notice.id > 0 && typeof notice.at === 'number')
+assert.match(notice.text, /^#2 done · 45\.0s/)
+assert.ok(!notice.text.includes('secret'), 'never the prompt')
+assert.ok(toasts.includes(notice.text), 'and the terminal shows it as a toast')
+await findKey(await drawPane(), 'cfg-notifyDone').onPress()
 
 // The page: served without data, with a policy that loads nothing from elsewhere
 const page = await raw(port, { headers: { host: `127.0.0.1:${port}` } })

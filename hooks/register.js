@@ -143,7 +143,7 @@ const STRINGS = {
     dockBottom: 'Dock below', dockSide: 'Dock to side', close: 'Close',
     bandKeys: 'ctrl+x tab for the keys',
     cfgHistoryCleared: 'History deleted.',
-    cfgNotifyNote: 'Notifications use your Claude Code notification channel and never include a prompt.',
+    cfgNotifyNote: 'Notifications use your Claude Code notification channel, a toast where it has none, and the browser view. Never a prompt.',
     cfgInsightsNote: 'History keeps counts per project between sessions: no prompts, no arguments.',
     insightsOff: 'Insights are off. Turn them on in Config (4): they read this session and keep per-project counts.',
     noFindings: 'Nothing to suggest for this session yet.',
@@ -292,7 +292,7 @@ const STRINGS = {
     dockBottom: 'Abaixo', dockSide: 'Na lateral', close: 'Fechar',
     bandKeys: 'ctrl+x tab p/ usar as teclas',
     cfgHistoryCleared: 'Histórico apagado.',
-    cfgNotifyNote: 'As notificações usam o canal de notificação do Claude Code e nunca trazem um prompt.',
+    cfgNotifyNote: 'As notificações usam o canal de notificação do Claude Code, um aviso no canto onde ele não existe, e o navegador. Nunca um prompt.',
     cfgInsightsNote: 'O histórico guarda contagens por projeto entre sessões: sem prompts, sem argumentos.',
     insightsOff: 'Os insights estão desligados. Ligue em Config (4): eles leem esta sessão e guardam contagens por projeto.',
     noFindings: 'Nada a sugerir para esta sessão por enquanto.',
@@ -699,12 +699,34 @@ function snapshot() {
 // on a locked screen.
 // ---------------------------------------------------------------------------
 
-function notify($, text) {
-  try {
-    Promise.resolve($.ui.notify(text, { title: 'Session Radar' })).catch(() => {})
-  } catch {
-    // No notification channel here
-  }
+// The last ones, for the browser view to show as they come: kept in the module alone, never in the
+// record or the export
+const MAX_NOTICES = 20
+let notices = []
+let noticeSeq = 0
+
+function notify($, text, kind) {
+  notices.push({ id: ++noticeSeq, at: Date.now(), kind, text })
+  if (notices.length > MAX_NOTICES) notices.shift()
+  markWebDirty()
+  void pushWeb($)
+  void (async () => {
+    let sent = null
+    try {
+      sent = await $.ui.notify(text, { title: 'Session Radar' })
+    } catch {
+      // No notification channel here, or the write failed
+    }
+    // A terminal with no channel (Windows Terminal, under auto) shows nothing, and the bell shows no
+    // text: then a toast. Unless a Notification hook of the person's answered for it on purpose
+    if (sent?.isSent && sent.channel !== 'terminal_bell') return
+    if (sent?.reason === 'refused') return
+    try {
+      $.ui.toast(text, { timeoutMs: 8000 })
+    } catch {
+      // No toasts on this surface either
+    }
+  })()
 }
 
 // How long the loop's cache has left. An unknown TTL counts as 5 minutes, the shorter of the two.
@@ -751,7 +773,7 @@ function notifyTurnDone($, turn) {
   const main = S.agents.get('main')
   const left = main?.ttl ? cacheRemaining(main) : null
   const until = left > 0 ? clockTime(Date.now() + left) : null
-  notify($, L.notifyDone(turn.n, fmtDur(turn.end - turn.start), turn.calls, turn.fails, until))
+  notify($, L.notifyDone(turn.n, fmtDur(turn.end - turn.start), turn.calls, turn.fails, until), 'done')
 }
 
 // Once per cache entry, while nothing runs: a running activity keeps the cache alive by itself
@@ -762,7 +784,7 @@ function checkCache($) {
   const left = cacheRemaining(a)
   if (left <= 0 || left > cfg.notifyCacheLead * 1000) return
   a.cacheWarned = a.cacheAt
-  notify($, L.notifyCache(fmtDur(Math.round(left / 1000) * 1000), fmtTok(a.cachePrompt), !a.ttl))
+  notify($, L.notifyCache(fmtDur(Math.round(left / 1000) * 1000), fmtTok(a.cachePrompt), !a.ttl), 'cache')
 }
 
 // ---------------------------------------------------------------------------
@@ -951,6 +973,8 @@ async function pushWeb($) {
       usage,
       session: clean({ ...badge, cwd, model, effort }),
       insightsView: insightsView(),
+      // The page shows the ones newer than it has seen, as a toast and, when allowed, a notification
+      notices,
       version: VERSION,
     })
     const res = await $.http.fetch(`${w.base}/api/ingest`, {

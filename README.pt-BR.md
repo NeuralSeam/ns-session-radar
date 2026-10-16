@@ -97,7 +97,12 @@ do sistema.
 
   - *Sempre mostrar o crachá desta sessão*, abaixo do prompt (veja abaixo).
 
-  As notificações usam o canal de notificação do Claude Code (`preferredNotifChannel`).
+  As notificações usam o canal de notificação do Claude Code (`preferredNotifChannel`). Onde ele não
+  mostra texto (sem canal em `auto`, como no Windows Terminal, ou só o sino), o mesmo texto aparece
+  como aviso no canto do transcript; um hook `Notification` que responda por ela o impede. Com o
+  navegador aberto, elas aparecem lá também, como aviso na página e, com a aba em segundo plano,
+  como notificação do sistema, depois de você clicar em *Ativar notificações do navegador* no
+  rodapé e permitir.
 
 No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel.
 

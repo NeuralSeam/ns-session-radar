@@ -110,8 +110,12 @@ press Enter to change a line:
 | Language | auto, Portuguese or English |
 
 Notifications go through Claude Code's own notification channel, the one your
-`preferredNotifChannel` setting names, and your `Notification` hooks see them. A terminal that does
-not show notifications may only ring its bell.
+`preferredNotifChannel` setting names, and your `Notification` hooks see them. Where that channel
+shows no text (no channel under `auto`, as in Windows Terminal, or only the bell), the same text
+shows as a toast in the corner of the transcript instead; a `Notification` hook that answers for it
+keeps it out. While the browser view is open, it shows them too, as a toast on the page, and as
+your system's own notification while its tab is in the background, once you press *Turn on browser
+notifications* in its footer and allow it.
 
 **History.** With insights on, the radar keeps, per project folder, counts for each of the last 30
 sessions in at most 20 projects: activities, calls, failures, denials, tokens, cache, the size of the

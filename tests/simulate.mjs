@@ -26,6 +26,8 @@ const el = (type) => (props) => ({ type, ...props })
 const toasts = []
 const writes = []
 const notes = []
+// What $.ui.notify answers: the bell by default, as a terminal with no notification sequence
+let notifyAnswer = () => ({ isSent: true, channel: 'terminal_bell' })
 const statuses = []
 const stored = new Map()
 // The session's state, held by Claude Code across reloads of the mod; a round trip through JSON too
@@ -41,7 +43,7 @@ const $ = {
     status: (text) => statuses.push(text),
     notify: async (text, options) => {
       notes.push({ text, ...options })
-      return { isSent: true, channel: 'terminal_bell' }
+      return notifyAnswer()
     },
     open: async (pane) => {
       panes.push(['open', pane.id])
@@ -324,6 +326,29 @@ await fire('turn.complete', { turnId: 't5', durationMs: 2_000 })
 assert.equal(notes.length, 1, 'only the activity over the minimum notifies')
 assert.match(notes[0].text, /^#4 done · 45\.0s · 0 tools/)
 assert.ok(!notes.some((n) => /hunter2|deploy/.test(n.text)), 'a notification never carries the prompt')
+
+// Where the channel shows no text, the same text comes as a toast; where it does, or a hook of the
+// person's answered for it, no toast
+const settle = () => new Promise((r) => setImmediate(r))
+await settle()
+assert.equal(toasts.at(-1), notes[0].text, 'the bell rings without the text, so a toast shows it')
+let noticeTurn = 0
+const toastsFor = async (answer) => {
+  notifyAnswer = answer
+  const before = toasts.length
+  const turnId = `tn${++noticeTurn}`
+  await fire('turn.start', { turnId, text: 'x' })
+  await fire('turn.complete', { turnId, durationMs: 45_000 })
+  await settle()
+  return toasts.slice(before).filter((t) => t.startsWith('#'))
+}
+assert.equal((await toastsFor(() => ({ isSent: true, channel: 'iterm2' }))).length, 0, 'a channel that shows the text is enough')
+assert.equal((await toastsFor(() => ({ isSent: false, reason: 'no-channel' }))).length, 1, 'no channel: a toast')
+assert.equal((await toastsFor(() => ({ isSent: false, reason: 'no-surface' }))).length, 1, 'no terminal: a toast')
+assert.equal((await toastsFor(() => ({ isSent: false, reason: 'refused' }))).length, 0, 'a hook answered for it')
+assert.equal((await toastsFor(() => Promise.reject(new Error('denied')))).length, 1, 'a failed write: a toast')
+notifyAnswer = () => ({ isSent: true, channel: 'terminal_bell' })
+notes.splice(1)
 await press('cfg-notifyDoneMin')
 assert.equal(storedJson('config').notifyDoneMin, 60)
 await press('cfg-notifyDone')

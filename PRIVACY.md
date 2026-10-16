@@ -22,7 +22,9 @@ The exceptions:
   in the Config tab removes it. While insights are on, the mod also reads the server names from the
   project's `.mcp.json`.
 - **Notifications, only if you turn them on**, go to your own notification channel, through Claude
-  Code. They hold numbers only, never your prompt.
+  Code, or show as a toast where it has none. While the browser view is open they reach its page
+  too, over the same loopback connection, and your browser shows them as a system notification
+  only if you allowed it there. They hold numbers only, never your prompt.
 
 Nothing else is written, and nothing is uploaded.
 
