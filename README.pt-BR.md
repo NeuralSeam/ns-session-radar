@@ -8,7 +8,8 @@ Guia curto. O [README.md](./README.md) em inglês é o documento de referência.
 
 > **Isto é um mod, ou seja, é código.** Ele roda dentro do Claude Code com as suas permissões e vê
 > todo prompt e toda chamada de ferramenta da sessão. Não envia nada para fora da sua máquina e não
-> chama nenhum modelo; o único arquivo que grava é o que você pede com `/radar-export`. Entre sessões
+> chama nenhum modelo; o único arquivo que grava é o export: quando você pede com `/radar-export`, ou
+> ao fim de cada atividade, se você ligar isso. Entre sessões
 > guarda o idioma e as configurações e, só se você ligar os insights, contagens por projeto, sem
 > prompts nem argumentos. As notificações ficam desligadas até você ligar. A visão no navegador,
 > quando você a abre, é servida só em `127.0.0.1`, protegida por um token aleatório. O
@@ -72,6 +73,10 @@ interface segue o idioma do sistema.
     sessões em até 20 projetos, sem prompts e sem argumentos, e lê do `.mcp.json` só os nomes dos
     servidores.
   - *Sugerir a análise com IA*, *Apagar o histórico guardado* e o idioma.
+  - *Salvar o export automaticamente quando uma atividade terminar*: grava o export sem perguntar,
+    um `session-radar-<início>.json` por conversa na pasta atual, regravado a cada atividade com a
+    conversa inteira, pronto para a [análise com IA](#análise-com-ia). Ponha `session-radar-*.json`
+    no seu `.gitignore`.
 
   - *Sempre mostrar o crachá desta sessão*, abaixo do prompt (veja abaixo).
 
@@ -95,7 +100,8 @@ navegador fechado, ligue *Sempre mostrar o crachá desta sessão* em Config.
 
 ## Análise com IA
 
-O plugin traz a skill `/session-radar:radar-review`. Exporte (`e`) e rode a skill: o Claude, na sua
+O plugin traz a skill `/session-radar:radar-review`. Exporte (`e`), ou ligue *Salvar o export
+automaticamente* em Config, e rode a skill: o Claude, na sua
 sessão e com as suas permissões, lê o export mais recente, o CLAUDE.md, as chaves `permissions`,
 `model` e `hooks` das configurações e o `.mcp.json`, e propõe mudanças em forma de diff, cada uma com
 a evidência e a métrica do radar que deve mudar. Também agrupa os prompts em tarefas recorrentes,

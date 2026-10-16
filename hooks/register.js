@@ -12,9 +12,10 @@
 //
 // Shown in a pane with seven tabs (/radar), as a live summary beside the spinner, and, on request
 // (/radar-web), as a page in the browser served from this machine's loopback by web/server.mjs.
-// Nothing leaves the machine: no remote network, no model calls. The only writes are /radar-export
-// and, in the mod's own store, the language, the settings and, when insights are on, per-project
-// counts. Notifications, when turned on, go to the person's own notification channel.
+// Nothing leaves the machine: no remote network, no model calls. The only writes are /radar-export,
+// the same file saved after each activity when the person turns that on, and, in the mod's own
+// store, the language, the settings and, when insights are on, per-project counts. Notifications,
+// when turned on, go to the person's own notification channel.
 
 import { analyze, summarize as sessionRecord, upsertHistory, compareApplied, TTL_MS } from './insights.js'
 
@@ -33,7 +34,7 @@ const WEB_START_MS = 10_000
 const AI_REVIEW = '/session-radar:radar-review'
 
 // Settings, kept in the store under `config`. Everything that notifies or keeps more data starts off.
-const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false, badge: false }
+const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false, autoExport: false, badge: false }
 
 // Each session's badge: a mark and a four-letter code, the same under the terminal's prompt, in the
 // pane and in the browser tab, so parallel sessions are told apart. No 0/O, 1/I/L or U.
@@ -120,6 +121,8 @@ const STRINGS = {
     cfgInsights: 'Insights, with per-project history',
     cfgAiHint: `Suggest the AI review (${AI_REVIEW})`,
     cfgClearHistory: 'Delete the stored history',
+    cfgAutoExport: 'Save the export automatically when an activity ends',
+    cfgAutoExportNote: 'One file per session in this folder, for the AI review. Do not commit it.',
     cfgBadge: (b) => `Always show this session's badge (${b}) under the prompt`,
     cfgBadgeNote: 'It also shows there while the browser view runs, to tell its tab apart.',
     cfgHistoryCleared: 'History deleted.',
@@ -258,6 +261,8 @@ const STRINGS = {
     cfgInsights: 'Insights, com histórico por projeto',
     cfgAiHint: `Sugerir a análise com IA (${AI_REVIEW})`,
     cfgClearHistory: 'Apagar o histórico guardado',
+    cfgAutoExport: 'Salvar o export automaticamente quando uma atividade terminar',
+    cfgAutoExportNote: 'Um arquivo por sessão nesta pasta, para a análise com IA. Não o versione.',
     cfgBadge: (b) => `Sempre mostrar o crachá desta sessão (${b}) abaixo do prompt`,
     cfgBadgeNote: 'Ele também aparece ali enquanto o radar no navegador roda, para achar a aba certa.',
     cfgHistoryCleared: 'Histórico apagado.',
@@ -763,8 +768,10 @@ async function trackUsage($) {
   }
 }
 
+const exportName = (at) => `session-radar-${new Date(at).toISOString().replace(/[:.]/g, '-')}.json`
+
 async function exportJson($) {
-  const file = `session-radar-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+  const file = exportName(Date.now())
   try {
     await $.fs.write(file, JSON.stringify(snapshot(), null, 2))
     $.ui.toast(`${L.exported} ${file}`)
@@ -773,6 +780,19 @@ async function exportJson($) {
     $.ui.toast(`${L.exportFailed} ${err?.message ?? err}`)
     return null
   }
+}
+
+// With the setting on, one file per conversation, named after its start and rewritten after each
+// activity, so it always holds the whole conversation so far. Quiet: a toast per activity would be
+// noise, and a failed write only means the next activity tries again.
+let autoWrite = Promise.resolve()
+
+function autoExport($) {
+  if (!cfg.autoExport) return autoWrite
+  const file = exportName(S.startedAt)
+  const text = JSON.stringify(snapshot(), null, 2)
+  autoWrite = autoWrite.then(() => $.fs.write(file, text)).catch(() => {})
+  return autoWrite
 }
 
 // ---------------------------------------------------------------------------
@@ -1385,6 +1405,9 @@ function configBody(ui, $, width) {
   out.push(T(Text, trunc('    ' + L.cfgInsightsNote, width), { dimColor: true }))
   out.push(row('clearHistory', '    ' + L.cfgClearHistory, () => clearHistory($), true))
   out.push(T(Text, ' '))
+  out.push(row('autoExport', check(cfg.autoExport) + L.cfgAutoExport, () => saveConfig($, { autoExport: !cfg.autoExport })))
+  out.push(T(Text, trunc('    ' + L.cfgAutoExportNote, width), { dimColor: true }))
+  out.push(T(Text, ' '))
   out.push(row('badge', check(cfg.badge) + L.cfgBadge(badgeText()), async () => {
     await saveConfig($, { badge: !cfg.badge })
     showBadge($)
@@ -1575,8 +1598,12 @@ export function register(on) {
         if (e.durationMs) turn.start = turn.end - e.durationMs
       }
       notifyTurnDone($, turn)
-      // In the background, so the turn's completion is never held up
-      if (cfg.insights) trackUsage($).then(() => saveSession($))
+      // In the background, so the turn's completion is never held up. The usage first, so the
+      // history and the saved export carry the highest context use
+      void (cfg.insights ? trackUsage($) : Promise.resolve()).then(() => {
+        saveSession($)
+        autoExport($)
+      })
     }
     redraw($)
     return next(e)

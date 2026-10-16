@@ -338,6 +338,48 @@ assert.equal(statuses.at(-1), code.replace(' ', ' radar '), 'the same session ke
 await press('cfg-badge')
 assert.equal(statuses.at(-1), undefined)
 
+// Saving the export after each activity: off by default; on, one file per conversation, rewritten
+// with the whole conversation each time, and in the background, so a turn never waits for it
+const autoOf = (from) => writes.slice(from)
+let before = writes.length
+assert.match(flat(await drawPane()), /\[ \] Save the export automatically when an activity ends/)
+await fire('turn.start', { turnId: 'x1', text: 'refactor the parser' })
+await fire('turn.complete', { turnId: 'x1', durationMs: 10 })
+await sleep(5)
+assert.equal(writes.length, before, 'nothing is saved while the setting is off')
+await press('cfg-autoExport')
+assert.equal(storedJson('config').autoExport, true)
+assert.match(flat(await drawPane()), /\[x\] Save the export automatically/)
+await fire('turn.start', { turnId: 'x2', text: 'add a test for the parser' })
+await fire('turn.complete', { turnId: 'x2', durationMs: 10 })
+await sleep(5)
+await fire('turn.start', { turnId: 'x3', text: 'run the suite' })
+await fire('turn.complete', { turnId: 'x3', durationMs: 10 })
+await sleep(5)
+const auto = autoOf(before)
+assert.equal(auto.length, 2, 'one write per activity')
+assert.match(auto[0].path, /^session-radar-[\dT-]+Z\.json$/)
+assert.equal(auto[0].path, auto[1].path, 'the same conversation keeps its file')
+const autoData = JSON.parse(auto[1].text)
+assert.equal(autoData.turns.at(-1).prompt, 'run the suite')
+assert.ok(autoData.turns.at(-1).end, 'the activity that just ended is in it, finished')
+assert.ok(autoData.insights, 'with insights on, the saved file carries them like the export does')
+assert.equal(toasts.filter((t) => t.includes(auto[0].path)).length, 0, 'saving is quiet')
+// A new conversation gets a new file
+await sleep(5)
+await fire('session.end', { reason: 'clear' })
+await fire('turn.start', { turnId: 'y1', text: 'something else' })
+await fire('turn.complete', { turnId: 'y1', durationMs: 10 })
+await sleep(5)
+assert.notEqual(writes.at(-1).path, auto[0].path)
+assert.equal(JSON.parse(writes.at(-1).text).turns.length, 1)
+await press('cfg-autoExport')
+before = writes.length
+await fire('turn.start', { turnId: 'y2', text: 'one more' })
+await fire('turn.complete', { turnId: 'y2', durationMs: 10 })
+await sleep(5)
+assert.equal(writes.length, before, 'turned off, it stops saving')
+
 // Deleting the history takes the key out of the store
 findKey(await drawPane(), 'tab-config').onPress()
 await press('cfg-clearHistory')

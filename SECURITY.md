@@ -36,7 +36,7 @@ configuration directory):
 | Key | What it holds | When |
 | --- | --- | --- |
 | `language` | `auto`, `pt` or `en` | Always, once you pick one |
-| `config` | The settings of the Config tab: seven on/off or number values | Once you change one |
+| `config` | The settings of the Config tab: eight on/off or number values | Once you change one |
 | `history` | Per project folder, for each of the last 30 sessions in at most 20 projects: counts of activities, calls, failures and denials; tokens and cache; the size of the first request; the highest context use; time and failures per tool name; the names of the MCP servers called; and, for each failing command, its tool and **first two words** (for example `Bash npm test`). Also the time and rule of each change you marked as applied | Only while insights are on. `Delete the stored history` in Config removes the key |
 
 The history holds no prompt text, no tool argument beyond those first two words of a failing
@@ -63,7 +63,7 @@ same list from the code, under `calls:`.
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
 | `$.session.usage` | Reads context, cost and plan limits for the API tab; with insights on, also when an activity ends, to keep the highest context use |
 | `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
-| `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e` |
+| `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
 | `$.store.get`, `$.store.set` | Reads the language, the settings and, with insights on, the history when the session starts; writes the language when you change it, the settings when you change one, and the history when an activity or the session ends while insights are on |
 | `$.store.delete` | Removes the history when you press `Delete the stored history` |
 | `$.process.spawn` | Starts `node web/server.mjs`, **only** when you run `/radar-web` or press `w` |
@@ -107,7 +107,10 @@ change no file without your confirmation. Read the file before you run it; it is
 
 ## The export file
 
-`/radar-export` writes JSON into the folder Claude Code is running in. It contains the tool
+`/radar-export` writes JSON into the folder Claude Code is running in. With `Save the export
+automatically` on in Config (off by default), the same file is also written, without asking, each
+time an activity ends: one file per conversation, `session-radar-<when it started>.json`, rewritten
+with the whole conversation so far. It contains the tool
 arguments and prompt beginnings described above, which can include a secret if one was typed into a
 shell command or a prompt. With insights on, it also holds the findings, the project's history and
 the names of the MCP servers in `.mcp.json`. Treat

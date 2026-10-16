@@ -13,7 +13,8 @@ Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 
 > **This is a mod, which means it is code.** It runs inside Claude Code with your permissions and
 > sees every prompt and tool call in the session. It sends nothing off your machine and calls no
-> model; the only file it writes is the one you ask for with `/radar-export`. Between sessions it
+> model; the only file it writes is the export: when you ask for it with `/radar-export`, or after
+> each activity if you turn that on. Between sessions it
 > keeps your language and settings and, only if you turn insights on, counts per project with no
 > prompt or argument in them. Notifications are off until you turn them on. The browser view, when
 > you open it, is served from `127.0.0.1` alone, behind a random token. [SECURITY.md](./SECURITY.md) lists
@@ -106,6 +107,7 @@ press Enter to change a line:
 | Warn before the cache expires | One notification per cache entry, 30 s to 5 min before the main session's cache expires, while nothing is running: how long is left and how many tokens the next request would rewrite. An unknown TTL counts as 5 minutes, and the text says so |
 | Insights, with per-project history | Turns on the Insights tab and keeps counts per project between sessions (below) |
 | Suggest the AI review | Shows the [AI review](#ai-review) in the Insights tab |
+| Save the export automatically when an activity ends | Writes the export after each activity, without asking: one `session-radar-<start>.json` per conversation in the current folder, rewritten each time with the whole conversation, ready for the [AI review](#ai-review). Add `session-radar-*.json` to your `.gitignore` |
 | Always show this session's badge | Keeps the session's badge under the prompt even with the browser view closed. See [Browser view](#browser-view) |
 | Delete the stored history | Deletes every project's history |
 | Language | auto, Portuguese or English |
@@ -183,7 +185,8 @@ on, as the counts of the [history](#what-it-shows).
 ## AI review
 
 The rules in the Insights tab find patterns and measure them; they do not write your CLAUDE.md. The
-plugin also ships a skill for that, `/session-radar:radar-review`. Export first (`e`), then run it.
+plugin also ships a skill for that, `/session-radar:radar-review`. Export first (`e`), or turn on
+`Save the export automatically` in Config, then run it.
 Claude, in your session and with your permissions, reads the newest `session-radar-*.json`, your
 CLAUDE.md, the `permissions`, `model` and `hooks` of your settings, and `.mcp.json`, and proposes
 changes as diffs, each with the numbers behind it and the radar metric that should move. It also

@@ -8,6 +8,18 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+### Added
+
+- Config: **Save the export automatically when an activity ends**. Each time an activity ends, the
+  radar writes the same JSON as `/radar-export`, without a toast: one `session-radar-<start>.json`
+  per conversation in the current folder, rewritten with the whole conversation so far, so
+  `/session-radar:radar-review` always has a recent export to read. Off by default.
+
+### Privacy and security
+
+- `$.fs.write` can now also run when an activity ends, only while that setting is on. The file
+  holds what the export holds; keep `session-radar-*.json` out of git.
+
 ## [0.5.1] - 2026-10-15
 
 ### Added
