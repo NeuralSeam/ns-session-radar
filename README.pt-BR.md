@@ -56,7 +56,7 @@ o radar para baixo do transcript ou de volta para a lateral, `Esc` fecha.
 próximas sessões. Na lateral o radar é um painel, que o Claude Code encaixa ao lado do transcript em
 tela cheia a partir de 110 colunas e, fora isso, acima do prompt. Abaixo, ele ocupa a faixa acima do
 prompt, compacto: abas e ações numa linha quando cabem, Início e Config em duas colunas num terminal
-largo, sem notas nem linhas em branco, numa moldura arredondada na cor do crachá que a separa do
+largo, sem notas, linhas em branco nem o endereço do navegador (`w` continua abrindo), numa moldura arredondada na cor do crachá que a separa do
 transcript (a partir de 8 linhas; abaixo disso as linhas ficam para o radar). A faixa recebe as teclas depois de `ctrl+x tab` ou de um
 clique, `q` fecha, e uma pesquisa do Claude Code tem a vez na faixa. Um mod não posiciona o painel
 sozinho, então não há lado esquerdo. O idioma fica em Config e em `/radar-lang`; em `auto` (o padrão) a interface segue o idioma
@@ -97,9 +97,17 @@ do sistema.
 
   - *Sempre mostrar o crachá desta sessão*, abaixo do prompt (veja abaixo).
 
-  As notificações usam o canal de notificação do Claude Code (`preferredNotifChannel`).
+  As notificações usam o canal de notificação do Claude Code (`preferredNotifChannel`). Onde ele não
+  mostra texto (sem canal em `auto`, como no Windows Terminal, ou só o sino), o mesmo texto aparece
+  como aviso no canto do transcript; um hook `Notification` que responda por ela o impede. Com o
+  navegador aberto, elas aparecem lá também, como aviso na página e, com a aba em segundo plano,
+  como notificação do sistema, depois de você clicar em *Ativar notificações do navegador* no
+  rodapé e permitir.
 
-No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel.
+No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel. Abaixo da
+navegação fica um anúncio, marcado como tal: hoje o do próprio Neural Seam, para o Neural Seam
+Premium. Ele faz parte da página como o resto: nada é carregado para mostrá-lo e ninguém é avisado de
+que foi mostrado; só clicar nele abre neuralseam.cloud numa aba nova.
 
 - **Início:** os cards da sessão e a **memória da máquina**: quanto está em uso, de quanto, e um
   gráfico dos últimos 10 minutos. Abaixo, chamadas por tipo, duração de cada atividade e tempo por

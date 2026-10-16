@@ -110,8 +110,12 @@ press Enter to change a line:
 | Language | auto, Portuguese or English |
 
 Notifications go through Claude Code's own notification channel, the one your
-`preferredNotifChannel` setting names, and your `Notification` hooks see them. A terminal that does
-not show notifications may only ring its bell.
+`preferredNotifChannel` setting names, and your `Notification` hooks see them. Where that channel
+shows no text (no channel under `auto`, as in Windows Terminal, or only the bell), the same text
+shows as a toast in the corner of the transcript instead; a `Notification` hook that answers for it
+keeps it out. While the browser view is open, it shows them too, as a toast on the page, and as
+your system's own notification while its tab is in the background, once you press *Turn on browser
+notifications* in its footer and allow it.
 
 **History.** With insights on, the radar keeps, per project folder, counts for each of the last 30
 sessions in at most 20 projects: activities, calls, failures, denials, tokens, cache, the size of the
@@ -226,7 +230,7 @@ Inside the pane:
 sessions. Beside, the radar is a pane, which Claude Code docks next to the transcript in fullscreen
 from 110 columns, and seats above the prompt otherwise. Below, it takes the band above the prompt,
 compact: tabs and actions on one row when they fit, Home and Config in two columns on a wide
-terminal, no notes or blank lines, in a rounded frame of the badge's color that sets it apart from
+terminal, no notes or blank lines and no browser address (`w` still opens it), in a rounded frame of the badge's color that sets it apart from
 the transcript (from 8 rows; under that the rows go to the radar). The band takes the keys after `ctrl+x tab` or a click, `q` closes
 it, and a survey from Claude Code has the band first. A mod cannot place a pane itself, so there is
 no left side.
@@ -258,7 +262,12 @@ data the pane shows.
 
 Press `w` in the pane (`/radar` opens it with the focus), or run `/radar-web`. The mod starts a
 small server, `web/server.mjs` (Node, no dependencies), and your default browser opens on it. The
-reply and the pane also show the address as a link, for when no browser can be opened.
+reply and the pane beside the transcript also show the address as a link, for when no browser can
+be opened.
+
+Below the navigation the page shows one ad, marked as such: today Neural Seam's own, for Neural
+Seam Premium. It is part of the page, like the rest: nothing is loaded to show it and nobody is told
+it was shown; only clicking it opens neuralseam.cloud in a new tab.
 
 The page has six views, described under [In the browser](#in-the-browser): Home with the
 machine's memory, Activities and Insights as in the pane, and Timeline, Agents and Tokens, which

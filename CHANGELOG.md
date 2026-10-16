@@ -8,6 +8,31 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-16
+
+### Fixed
+
+- **Notifications that showed nothing.** Where Claude Code's notification channel shows no text (no
+  channel under `auto`, as in Windows Terminal, or only the bell), a notification from the radar
+  went nowhere. It now shows as a toast in the corner of the transcript; a `Notification` hook of
+  yours that answers for it still keeps it out.
+
+### Added
+
+- Browser view: **the radar's notifications on the page.** Each one shows as a toast, and, once you
+  press *Turn on browser notifications* in the footer and allow it, as your system's notification
+  while the tab is in the background. Opening the page does not replay earlier ones.
+- Browser view: **a place for one ad**, below the navigation (a strip above the footer on a narrow
+  window), marked as an ad. The first is Neural Seam's own, for Neural Seam Premium. Ads are
+  embedded in the page: nothing is loaded to show one and nothing reports that it was shown; the
+  page's content policy is unchanged.
+
+### Changed
+
+- Below the transcript, the band no longer shows the browser view's address beside `w Web`: it
+  took most of the action row. `w` still opens the page, and the pane beside the transcript and the
+  reply of `/radar-web` still show the address.
+
 ## [0.6.0] - 2026-10-16
 
 ### Added
@@ -191,7 +216,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.6.0...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.0...main
+[0.7.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.4.0...v0.5.0

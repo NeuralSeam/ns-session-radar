@@ -22,9 +22,15 @@ The exceptions:
   in the Config tab removes it. While insights are on, the mod also reads the server names from the
   project's `.mcp.json`.
 - **Notifications, only if you turn them on**, go to your own notification channel, through Claude
-  Code. They hold numbers only, never your prompt.
+  Code, or show as a toast where it has none. While the browser view is open they reach its page
+  too, over the same loopback connection, and your browser shows them as a system notification
+  only if you allowed it there. They hold numbers only, never your prompt.
 
 Nothing else is written, and nothing is uploaded.
+
+The browser view shows one ad, Neural Seam's own. It is embedded in the page: showing it loads
+nothing and reports nothing. Only if you click it does your browser open neuralseam.cloud, in a new
+tab, without a referrer.
 
 The AI review (`/session-radar:radar-review`) is a skill that Claude runs in your session, when you
 call it: what it reads goes to the model like anything else in that session. The mod itself never

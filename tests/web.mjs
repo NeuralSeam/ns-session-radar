@@ -201,6 +201,15 @@ const link = findType(await drawPane(), 'Link')
 assert.equal(link?.href, url[0])
 assert.ok(findKey(await drawPane(), 'web'), 'the pane has the Web button')
 
+// Below the transcript the band keeps the Web button but not the address, which takes too much room
+await findKey(await drawPane(), 'dock').onPress()
+await fire('command.run', { command: 'radar', args: '' })
+const drawBand = () => fire('ui.render', { component: 'AbovePrompt', props: { bodyColumns: 160, maxRows: 12, hasSurvey: false } }, async () => null)
+assert.ok(findKey(await drawBand(), 'web'), 'the band has the Web button')
+assert.equal(findType(await drawBand(), 'Link'), undefined, 'no address in the band')
+await findKey(await drawBand(), 'dock').onPress()
+assert.equal(findType(await drawPane(), 'Link')?.href, url[0], 'the pane has it again')
+
 // The snapshot arrives with the session's numbers and the usage
 assert.ok(await waitFor(async () => (await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text !== 'null'))
 let state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
@@ -224,6 +233,7 @@ assert.equal(badge.model, 'sonnet-5-5')
 // Only the effort's value from the /config rows; insights are off, so the page gets none of them
 assert.equal(badge.effort, 'medium')
 assert.equal(state.insightsView, null)
+assert.deepEqual(state.notices, [], 'no notifications while they are off')
 // The release, for the page's footer
 const { version } = JSON.parse(await import('node:fs').then((fs) => fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')))
 assert.equal(state.version, version)
@@ -270,17 +280,39 @@ assert.equal(denial.applied, false)
 assert.deepEqual(state.insightsView.trends, [])
 assert.equal(state.insightsView.aiHint, null)
 
+// A notification reaches the page too, numbers only, for it to show as a toast or the browser's own.
+// This Claude Code has no notification channel, so the terminal gets a toast
+await findKey(await drawPane(), 'cfg-notifyDone').onPress()
+await fire('turn.start', { turnId: 't2', text: 'secret prompt' })
+await fire('turn.complete', { turnId: 't2', durationMs: 45_000 })
+assert.ok(await waitFor(async () => {
+  state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+  return state.notices?.length === 1
+}, 3000), 'the notification reaches the page')
+const [notice] = state.notices
+assert.equal(notice.kind, 'done')
+assert.ok(notice.id > 0 && typeof notice.at === 'number')
+assert.match(notice.text, /^#2 done · 45\.0s/)
+assert.ok(!notice.text.includes('secret'), 'never the prompt')
+assert.ok(toasts.includes(notice.text), 'and the terminal shows it as a toast')
+await findKey(await drawPane(), 'cfg-notifyDone').onPress()
+
 // The page: served without data, with a policy that loads nothing from elsewhere
 const page = await raw(port, { headers: { host: `127.0.0.1:${port}` } })
 assert.equal(page.status, 200)
 assert.match(page.headers['content-security-policy'], /default-src 'none'/)
 assert.match(page.headers['content-security-policy'], /script-src 'self'/)
 assert.ok(!/https?:\/\//.test(page.text.replace(/http:\/\/www\.w3\.org/g, '')), 'no remote URL in the page')
+// The ad is embedded: its one remote URL is where its link goes, which loads nothing
+const AD_HREF = "href: 'https://neuralseam.cloud/premium'"
+assert.match(page.text, /<aside class="promo" id="promo"><\/aside>/, 'the page keeps a place for the ad')
 for (const file of ['/app.js', '/app.css']) {
   const r = await raw(port, { path: file, headers: { host: `localhost:${port}` } })
   assert.equal(r.status, 200, file)
-  assert.ok(!/https?:\/\/(?!www\.w3\.org)/.test(r.text), `no remote URL in ${file}`)
+  if (file === '/app.js') assert.ok(r.text.includes(AD_HREF), 'the house ad links to Neural Seam Premium')
+  assert.ok(!/https?:\/\/(?!www\.w3\.org)/.test(r.text.replace(AD_HREF, '')), `no other remote URL in ${file}`)
 }
+assert.match(page.headers['content-security-policy'], /connect-src 'self'; img-src 'self' data:/, 'the policy did not widen for the ad')
 
 // The guards
 const H = { host: `127.0.0.1:${port}` }

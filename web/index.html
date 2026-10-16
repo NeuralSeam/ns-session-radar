@@ -19,6 +19,7 @@
     </header>
 
     <nav class="nav" id="nav"></nav>
+    <aside class="promo" id="promo"></aside>
 
     <main class="main">
       <div class="toolbar" id="toolbar">
@@ -44,10 +45,14 @@
 
     <footer class="foot">
       <span id="credit"></span>
-      <span class="foot-hint" id="hint"></span>
+      <span class="foot-end">
+        <button class="foot-btn" id="notify-on" type="button" hidden></button>
+        <span class="foot-hint" id="hint"></span>
+      </span>
     </footer>
   </div>
   <div class="tip" id="tip" hidden></div>
+  <div class="notices" id="notices" aria-live="polite"></div>
   <script src="/app.js"></script>
 </body>
 </html>

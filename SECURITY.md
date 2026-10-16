@@ -62,12 +62,12 @@ same list from the code, under `calls:`.
 | `$.command.register` | Adds `/radar`, `/radar-export`, `/radar-lang`, `/radar-web` and `/radar-config` |
 | `$.ui.open`, `$.ui.close`, `$.ui.resolve`, `$.ui.invalidate` | Opens, draws and redraws the pane, the band above the prompt when the radar is placed below, and the spinner suffix |
 | `$.state.get`, `$.state.set` | Keeps a copy of what the radar recorded in the session's state, so a reload of the mod does not lose it; read once, when the reloaded mod starts |
-| `$.ui.toast` | Says where an export went, and that the history was deleted |
+| `$.ui.toast` | Says where an export went, and that the history was deleted; shows a notification you turned on where your notification channel shows no text |
 | `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
 | `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |
 | `$.session.model` | Names the model on the Home tab, and beside the badge on the page while the browser view runs |
 | `$.config.list` | While the Home tab is drawn or the browser view runs, at most every 5 seconds, to find the `/config` row that holds the effort level. The session API does not report it. Only that row's value is kept, in memory; the other rows are not read further, kept or sent |
-| `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument |
+| `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument. The mod reads whether a channel showed it, to fall back to a toast |
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
 | `$.session.usage` | Reads context, cost and plan limits for the Home tab and the browser view; with insights on, also when an activity ends, to keep the highest context use |
 | `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
@@ -100,14 +100,18 @@ so is any request carrying another site's `Origin`. The page is static, served w
 It keeps the last snapshot in memory and nothing on disk. The snapshot holds what
 [What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, the
 folder it runs in, its model and effort level, so the page can tell parallel sessions apart, and,
-while insights are on, the findings and comparisons as the Insights tab words them. Anyone who has
+while insights are on, the findings and comparisons as the Insights tab words them, and the last 20
+notifications you turned on, with the same text. Anyone who has
 the URL, on this machine, can read it while the server runs; treat the URL like the export file.
 
 While it runs, the server also reads the machine's total and free memory every 2 seconds, with
 Node's `os.totalmem()` and `os.freemem()`, keeps the last 10 minutes of those two numbers in memory
 and sends them only to the page. It does not list processes, read other processes' memory or run
 any command. The page itself still only reads: it sends nothing to the server but the requests for
-the data, and cannot change the mod's settings or marks. The server stops on
+the data, and cannot change the mod's settings or marks. It shows those notifications as toasts and,
+only after you press its button and your browser asks you, as system notifications. Its one ad is
+part of the page: it loads nothing and reports nothing, and its link opens neuralseam.cloud in a new
+tab, without a referrer, only when you click it. The server stops on
 `/radar-web stop`, when the mod is unloaded or Claude Code exits, and on its own after 30 seconds
 without a snapshot from the mod.
 

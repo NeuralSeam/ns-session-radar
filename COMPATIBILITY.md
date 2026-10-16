@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.7.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-16 |
 | 0.6.0 | 2.1.301 | Terminal | Windows 11, Node 22 | 2026-10-16 |
 | 0.5.1 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
 | 0.5.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
@@ -51,6 +52,15 @@ terminal on Windows 11, the checks in [CONTRIBUTING.md](./CONTRIBUTING.md#before
 plus the radar moved below with `d`, drawn compact in the band with its frame, and a
 `/reload-plugins` that kept what the radar had recorded. `npm test` passed in English and
 `pt_BR`, and `claude plugin validate . --strict` passed. The Desktop app was not tested.
+
+**What the 0.7.0 row adds:** the same run as 0.6.0, simulated: the band without the browser's
+address, the toast for each answer of `$.ui.notify` (the bell, no channel, no terminal, a refusing
+hook, a failed write), the notifications reaching the page's snapshot without the prompt, and the
+ad's place, its one link and the unchanged content policy. The page's toasts and the ad were checked
+in headless Chrome at 1440, 900 and 420 pixels against the real mod and server fed by a fake Claude
+Code. `npm test` passed in English and `pt_BR`, and `claude plugin validate . --strict` passed on
+Claude Code 2.1.301. Not yet seen in a real session for this row: the toast in Windows Terminal and
+the browser's system notification.
 
 **What it does not cover:** the Desktop app, and builds other than 2.1.301. The checks in
 [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) are what fills in a row.
