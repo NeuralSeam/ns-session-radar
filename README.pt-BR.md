@@ -56,7 +56,7 @@ o radar para baixo do transcript ou de volta para a lateral, `Esc` fecha.
 próximas sessões. Na lateral o radar é um painel, que o Claude Code encaixa ao lado do transcript em
 tela cheia a partir de 110 colunas e, fora isso, acima do prompt. Abaixo, ele ocupa a faixa acima do
 prompt, compacto: abas e ações numa linha quando cabem, Início e Config em duas colunas num terminal
-largo, sem notas nem linhas em branco, numa moldura arredondada na cor do crachá que a separa do
+largo, sem notas, linhas em branco nem o endereço do navegador (`w` continua abrindo), numa moldura arredondada na cor do crachá que a separa do
 transcript (a partir de 8 linhas; abaixo disso as linhas ficam para o radar). A faixa recebe as teclas depois de `ctrl+x tab` ou de um
 clique, `q` fecha, e uma pesquisa do Claude Code tem a vez na faixa. Um mod não posiciona o painel
 sozinho, então não há lado esquerdo. O idioma fica em Config e em `/radar-lang`; em `auto` (o padrão) a interface segue o idioma

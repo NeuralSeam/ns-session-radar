@@ -226,7 +226,7 @@ Inside the pane:
 sessions. Beside, the radar is a pane, which Claude Code docks next to the transcript in fullscreen
 from 110 columns, and seats above the prompt otherwise. Below, it takes the band above the prompt,
 compact: tabs and actions on one row when they fit, Home and Config in two columns on a wide
-terminal, no notes or blank lines, in a rounded frame of the badge's color that sets it apart from
+terminal, no notes or blank lines and no browser address (`w` still opens it), in a rounded frame of the badge's color that sets it apart from
 the transcript (from 8 rows; under that the rows go to the radar). The band takes the keys after `ctrl+x tab` or a click, `q` closes
 it, and a survey from Claude Code has the band first. A mod cannot place a pane itself, so there is
 no left side.
@@ -258,7 +258,8 @@ data the pane shows.
 
 Press `w` in the pane (`/radar` opens it with the focus), or run `/radar-web`. The mod starts a
 small server, `web/server.mjs` (Node, no dependencies), and your default browser opens on it. The
-reply and the pane also show the address as a link, for when no browser can be opened.
+reply and the pane beside the transcript also show the address as a link, for when no browser can
+be opened.
 
 The page has six views, described under [In the browser](#in-the-browser): Home with the
 machine's memory, Activities and Insights as in the pane, and Timeline, Agents and Tokens, which

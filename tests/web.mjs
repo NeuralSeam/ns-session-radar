@@ -201,6 +201,15 @@ const link = findType(await drawPane(), 'Link')
 assert.equal(link?.href, url[0])
 assert.ok(findKey(await drawPane(), 'web'), 'the pane has the Web button')
 
+// Below the transcript the band keeps the Web button but not the address, which takes too much room
+await findKey(await drawPane(), 'dock').onPress()
+await fire('command.run', { command: 'radar', args: '' })
+const drawBand = () => fire('ui.render', { component: 'AbovePrompt', props: { bodyColumns: 160, maxRows: 12, hasSurvey: false } }, async () => null)
+assert.ok(findKey(await drawBand(), 'web'), 'the band has the Web button')
+assert.equal(findType(await drawBand(), 'Link'), undefined, 'no address in the band')
+await findKey(await drawBand(), 'dock').onPress()
+assert.equal(findType(await drawPane(), 'Link')?.href, url[0], 'the pane has it again')
+
 // The snapshot arrives with the session's numbers and the usage
 assert.ok(await waitFor(async () => (await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text !== 'null'))
 let state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)

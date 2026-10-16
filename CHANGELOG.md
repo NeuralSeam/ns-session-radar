@@ -8,6 +8,12 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+### Changed
+
+- Below the transcript, the band no longer shows the browser view's address beside `w Web`: it
+  took most of the action row. `w` still opens the page, and the pane beside the transcript and the
+  reply of `/radar-web` still show the address.
+
 ## [0.6.0] - 2026-10-16
 
 ### Added

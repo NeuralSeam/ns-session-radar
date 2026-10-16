@@ -1792,7 +1792,8 @@ async function radarTree($, ui, width, bodyRows, compact) {
           if (!(await openWeb($))) $.ui.toast(L.webFailed)
         },
       }),
-      ...(web?.url && Link ? [Text({ wrap: 'truncate', children: [Link({ href: web.url, label: web.base.replace('http://', '') })] })] : []),
+      // The address only in the pane: the band has no room for it, and /radar-web names it anyway
+      ...(web?.url && Link && !compact ? [Text({ wrap: 'truncate', children: [Link({ href: web.url, label: web.base.replace('http://', '') })] })] : []),
       // As DevTools' dock button: the place it goes to, not the one it is in
       Button({
         key: 'dock',
@@ -1873,10 +1874,10 @@ async function radarTree($, ui, width, bodyRows, compact) {
 
 const dockLabel = () => (cfg.position === 'side' ? L.dockBottom : L.dockSide)
 
-// What the action row takes, for the band to tell whether it fits beside the tabs
+// What the band's action row takes, for it to tell whether it fits beside the tabs
 function actionLabels() {
   const clear = Date.now() - clearArmedAt < CLEAR_CONFIRM_MS ? L.clearConfirm : L.clear
-  return [L.export, clear, L.web, ...(web?.base ? [web.base.replace('http://', '')] : []), dockLabel(), L.help, L.close]
+  return [L.export, clear, L.web, dockLabel(), L.help, L.close]
 }
 
 // A plain Button is drawn as its hotkey, a separator and its label
