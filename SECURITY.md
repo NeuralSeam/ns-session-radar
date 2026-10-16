@@ -31,13 +31,18 @@ token counts; for each prompt you send, its first 120 characters on one line, pl
 counts. At most 500 calls and 200 prompts; older ones are dropped. All of it is gone when the
 session ends, or on `/clear`, `/resume`, `/branch`, or the `x` key in the pane.
 
+A copy of the same record is handed to Claude Code's session state (`$.state`, key
+`session-radar.session`), also in memory, so a reload of the mod (an update, `/reload-plugins`)
+carries on instead of starting over. It holds nothing the record above does not, is written at most
+every 2 seconds while something changed, and ends with the session.
+
 Between sessions, in its own store (a JSON file Claude Code keeps for the mod under your
 configuration directory):
 
 | Key | What it holds | When |
 | --- | --- | --- |
 | `language` | `auto`, `pt` or `en` | Always, once you pick one |
-| `config` | The settings of the Config tab: eight on/off or number values | Once you change one |
+| `config` | The settings of the Config tab: on/off or number values, and the radar's position (`side` or `bottom`) | Once you change one |
 | `history` | Per project folder, for each of the last 30 sessions in at most 20 projects: counts of activities, calls, failures and denials; tokens and cache; the size of the first request; the highest context use; time and failures per tool name; the names of the MCP servers called; and, for each failing command, its tool and **first two words** (for example `Bash npm test`). Also the time and rule of each change you marked as applied | Only while insights are on. `Delete the stored history` in Config removes the key |
 
 The history holds no prompt text, no tool argument beyond those first two words of a failing
@@ -55,7 +60,8 @@ same list from the code, under `calls:`.
 | Call | Why |
 | --- | --- |
 | `$.command.register` | Adds `/radar`, `/radar-export`, `/radar-lang`, `/radar-web` and `/radar-config` |
-| `$.ui.open`, `$.ui.close`, `$.ui.resolve`, `$.ui.invalidate` | Opens, draws and redraws the pane and the spinner suffix |
+| `$.ui.open`, `$.ui.close`, `$.ui.resolve`, `$.ui.invalidate` | Opens, draws and redraws the pane, the band above the prompt when the radar is placed below, and the spinner suffix |
+| `$.state.get`, `$.state.set` | Keeps a copy of what the radar recorded in the session's state, so a reload of the mod does not lose it; read once, when the reloaded mod starts |
 | `$.ui.toast` | Says where an export went, and that the history was deleted |
 | `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
 | `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |

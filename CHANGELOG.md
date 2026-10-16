@@ -10,6 +10,16 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ### Added
 
+- **Beside or below, as DevTools docks.** `d` in the radar, or *Radar position* in Config, moves it
+  below the transcript, into the band above the prompt, or back beside it; the choice is kept for
+  your next sessions. Below, it is compact to fit the band: tabs and actions share a row when they
+  fit, Home and Config take two columns on a wide terminal, and the notes and blank lines are left
+  out. A rounded frame in the badge's color sets it apart from the transcript, from 8 rows. `ctrl+x
+  tab` or a click gives the band the keys, and `q` closes it.
+- **What the radar recorded survives a reload of the mod.** Updating it, `/reload-plugins` or a hot
+  reload while developing it used to start the radar over, empty; it now carries on with the same
+  conversation, its activities, calls, agents and tokens. A call still running at the reload shows as
+  interrupted. `/clear` and `/resume` still start over.
 - Config: **Save the export automatically when an activity ends**. Each time an activity ends, the
   radar writes the same JSON as `/radar-export`, without a toast: one `session-radar-<start>.json`
   per conversation in the current folder, rewritten with the whole conversation so far, so
@@ -39,6 +49,9 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ### Privacy and security
 
+- New mods API calls: `$.state.get` and `$.state.set`. A copy of what the radar recorded goes to
+  Claude Code's session state, in memory, so a reload does not lose it; it holds nothing the radar
+  did not already keep, and ends with the session.
 - `$.fs.write` can now also run when an activity ends, only while that setting is on. The file
   holds what the export holds; keep `session-radar-*.json` out of git.
 - New mods API call: `$.config.list`, while Home is drawn or the browser view runs, to find the

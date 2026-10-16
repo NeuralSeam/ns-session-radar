@@ -6,7 +6,8 @@ account, and calls no model. Its only network traffic is to itself: when you ope
 to a server it starts on `127.0.0.1`, which your browser then reads from.
 
 What it records stays in memory, inside the Claude Code process, for the current conversation, and
-is gone when that conversation ends. [SECURITY.md](./SECURITY.md#what-it-keeps) says exactly what
+is gone when that conversation ends. A copy is handed to Claude Code's session state, also in memory,
+only so a reload of the mod does not lose it; it ends with the session too. [SECURITY.md](./SECURITY.md#what-it-keeps) says exactly what
 that is.
 
 The exceptions:

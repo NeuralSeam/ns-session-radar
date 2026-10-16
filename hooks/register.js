@@ -34,16 +34,21 @@ const WEB_START_MS = 10_000
 const AI_REVIEW = '/session-radar:radar-review'
 const EFFORT_MS = 5000
 const CLEAR_CONFIRM_MS = 3000
+const SAVE_MS = 2000
+// The band below the transcript lays Home out in two columns from this width
+const HOME_COLUMNS_MIN = 130
+// Fewer rows than this and the band drops its frame, to keep them for the radar
+const BAND_FRAME_MIN = 8
 
 // Settings, kept in the store under `config`. Everything that notifies or keeps more data starts off.
-const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false, autoExport: false, badge: false }
+const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false, autoExport: false, badge: false, position: 'side' }
 
 // Each session's badge: a mark and a four-letter code, the same under the terminal's prompt, in the
 // pane and in the browser tab, so parallel sessions are told apart. No 0/O, 1/I/L or U.
 const BADGE_CHARS = '23456789ABCDEFGHJKMNPQRSTVWXYZ'
 const BADGE_MARKS = ['●', '■', '▲', '★']
 const BADGE_COLORS = ['cyan', 'magenta', 'blue', 'green']
-const CHOICES = { notifyDoneMin: [15, 30, 60, 120], notifyCacheLead: [30, 60, 120, 300] }
+const CHOICES = { notifyDoneMin: [15, 30, 60, 120], notifyCacheLead: [30, 60, 120, 300], position: ['side', 'bottom'] }
 
 // ---------------------------------------------------------------------------
 // Strings. The language is the one picked with /radar-lang or the `l` key; on `auto`, Brazilian
@@ -99,19 +104,20 @@ const STRINGS = {
       activities: (n) => (n ? `${plural(n, 'activity', 'activities')} · ` : '') + 'each prompt and the tools it called',
       insights: (on, n) => (on ? `${plural(n, 'suggestion', 'suggestions')} for this project's setup`
         : "suggestions for this project's setup · off: turn on in 4"),
-      config: 'notifications, insights, auto export, badge, language',
+      config: 'notifications, insights, auto export, badge, position, language',
       web: (calls, api) => (calls || api ? `${plural(calls, 'call', 'calls')}, ${plural(api, 'request', 'requests')} · ` : '') +
         'timeline, agents, tokens, memory',
     },
     helpText: {
       home: 'The session at a glance: model, context, tokens, plan limits and the cache, straight from Claude ' +
         'Code. Below, what each tab shows; w opens the browser view for the timeline, agents, tokens and ' +
-        'memory. Switch tabs with 1 to 4; h hides this help.',
+        'memory. Switch tabs with 1 to 4; d moves the radar beside the transcript or below; h hides this help.',
       activities: 'Each prompt you send is one activity. Open one with Enter to see every tool it called, in ' +
         "order, its subagents' included, with when it started and how long it took.",
       insights: "Fixed rules read this session and the project's history and suggest setup changes. Once " +
         'you apply one, press mark applied: the tab compares the sessions before and after.',
       config: 'Enter or a click changes a line. Everything that notifies or keeps data starts off.',
+
     },
     cmdConfig: 'Open the radar settings: notifications, insights, language',
     notifyDone: (n, dur, calls, fails, until) => `#${n} done · ${dur} · ${calls} tools` +
@@ -130,6 +136,12 @@ const STRINGS = {
     cfgAutoExportNote: 'One file per session in this folder, for the AI review. Do not commit it.',
     cfgBadge: (b) => `Always show this session's badge (${b}) under the prompt`,
     cfgBadgeNote: 'It also shows there while the browser view runs, to tell its tab apart.',
+    cfgPosition: 'Radar position',
+    posSide: 'side (beside the transcript, in fullscreen)',
+    posBottom: 'below (above the prompt, compact)',
+    cfgPositionNote: 'd in the radar switches too. Under 110 columns Claude Code places the side pane below.',
+    dockBottom: 'Dock below', dockSide: 'Dock to side', close: 'Close',
+    bandKeys: 'ctrl+x tab for the keys',
     cfgHistoryCleared: 'History deleted.',
     cfgNotifyNote: 'Notifications use your Claude Code notification channel and never include a prompt.',
     cfgInsightsNote: 'History keeps counts per project between sessions: no prompts, no arguments.',
@@ -242,14 +254,14 @@ const STRINGS = {
       activities: (n) => (n ? `${plural(n, 'atividade', 'atividades')} · ` : '') + 'cada prompt e as ferramentas que ele chamou',
       insights: (on, n) => (on ? `${plural(n, 'sugestão', 'sugestões')} para a configuração do projeto`
         : 'sugestões para a configuração do projeto · desligado: ligue em 4'),
-      config: 'avisos, insights, export automático, crachá, idioma',
+      config: 'avisos, insights, export automático, crachá, posição, idioma',
       web: (calls, api) => (calls || api ? `${plural(calls, 'chamada', 'chamadas')}, ${api} req. · ` : '') +
         'linha do tempo, agentes, tokens, memória',
     },
     helpText: {
       home: 'A sessão num relance: modelo, contexto, tokens, limites do plano e o cache, direto do Claude ' +
         'Code. Abaixo, o que cada aba mostra; w abre o navegador com a linha do tempo, os agentes, os tokens ' +
-        'e a memória. Troque de aba com 1 a 4; h esconde esta ajuda.',
+        'e a memória. Troque de aba com 1 a 4; d move o radar para a lateral ou para baixo; h esconde esta ajuda.',
       activities: 'Cada prompt que você envia é uma atividade. Abra uma com Enter para ver, em ordem, cada ' +
         'ferramenta que ela chamou, inclusive as dos subagentes, com quando começou e quanto levou.',
       insights: 'Regras fixas leem esta sessão e o histórico do projeto e sugerem mudanças na configuração. ' +
@@ -273,6 +285,12 @@ const STRINGS = {
     cfgAutoExportNote: 'Um arquivo por sessão nesta pasta, para a análise com IA. Não o versione.',
     cfgBadge: (b) => `Sempre mostrar o crachá desta sessão (${b}) abaixo do prompt`,
     cfgBadgeNote: 'Ele também aparece ali enquanto o radar no navegador roda, para achar a aba certa.',
+    cfgPosition: 'Posição do radar',
+    posSide: 'lateral (ao lado do transcript, em tela cheia)',
+    posBottom: 'abaixo (acima do prompt, compacto)',
+    cfgPositionNote: 'd no radar também alterna. Com menos de 110 colunas o Claude Code põe o painel lateral embaixo.',
+    dockBottom: 'Abaixo', dockSide: 'Na lateral', close: 'Fechar',
+    bandKeys: 'ctrl+x tab p/ usar as teclas',
     cfgHistoryCleared: 'Histórico apagado.',
     cfgNotifyNote: 'As notificações usam o canal de notificação do Claude Code e nunca trazem um prompt.',
     cfgInsightsNote: 'O histórico guarda contagens por projeto entre sessões: sem prompts, sem argumentos.',
@@ -381,7 +399,7 @@ function readConfig(saved) {
   for (const [k, v] of Object.entries(DEFAULTS)) {
     const got = saved?.[k]
     if (typeof v === 'boolean' && typeof got === 'boolean') out[k] = got
-    if (typeof v === 'number' && CHOICES[k]?.includes(got)) out[k] = got
+    if (typeof v !== 'boolean' && CHOICES[k]?.includes(got)) out[k] = got
   }
   return out
 }
@@ -432,6 +450,55 @@ let hist = null
 let mcpConfigured = []
 let histWrite = Promise.resolve()
 let badge = makeBadge(null)
+
+// What the radar recorded is also handed to Claude Code, which holds it for the session, so a reload
+// of the mod (an update, /reload-plugins, a hot reload while developing it) carries on from it
+// instead of starting over. It is written at most every SAVE_MS while something changed, and at
+// once when an activity ends, which is when a reload comes. Only the first session.start of a copy
+// of the module reads it back: that one is the reload, and a later one must not roll back to it.
+const SAVED = { plugin: 'session-radar', key: 'session' }
+let restoreDone = false
+let saveDirty = false
+let lastSave = 0
+let saving = Promise.resolve()
+
+function saveState($) {
+  if (!restoreDone) return saving
+  saveDirty = false
+  lastSave = Date.now()
+  const value = { v: 1, savedAt: lastSave, seq, S: { ...S, agents: [...S.agents.values()] } }
+  saving = saving.then(() => $.state.set(SAVED, value)).catch(() => {
+    saveDirty = true
+  })
+  return saving
+}
+
+async function restoreState($) {
+  restoreDone = true
+  let saved
+  try {
+    saved = (await $.state.get(SAVED)).value
+  } catch {
+    // No state here: the radar starts empty, as before
+    return
+  }
+  if (saved?.v !== 1 || !Array.isArray(saved.S?.spans) || !Array.isArray(saved.S.agents)) return
+  const base = fresh()
+  S = {
+    ...base,
+    ...saved.S,
+    totals: { ...base.totals, ...saved.S.totals },
+    agents: new Map([...base.agents, ...saved.S.agents.map((a) => [a.id, a])]),
+  }
+  // The calls still running when the old copy went away end with it: their outcome never reaches
+  // this one. Subagents stay open, since their end is reported to whichever copy is loaded.
+  for (const s of S.spans) {
+    if (s.end) continue
+    s.end = saved.savedAt ?? Date.now()
+    s.status = 'interrupted'
+  }
+  seq = Math.max(saved.seq ?? 0, ...S.spans.map((s) => s.id))
+}
 
 function fresh() {
   const startedAt = Date.now()
@@ -537,6 +604,7 @@ const trunc = (s, n) => (s.length > n ? s.slice(0, Math.max(0, n - 1)) + '…' :
 const pad = (s, n) => trunc(s, n).padEnd(n)
 const redraw = ($) => {
   markWebDirty()
+  saveDirty = true
   $.ui.invalidate('ui.render')
 }
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
@@ -1057,20 +1125,21 @@ function turnMark(t) {
   return { mark: '✓', color: 'green' }
 }
 
-// One line per prompt; the open one lists, in order, every call it made, its subagents' included
-function activitiesBody(ui, $, width, maxRows) {
+// One line per prompt; the open one lists, in order, every call it made, its subagents' included.
+// Compact, below the transcript, without the hint line on top.
+function activitiesBody(ui, $, width, maxRows, compact = false) {
   const { Box, Text, Button } = ui
   if (!S.turns.length) return [T(Text, L.emptyActivities, { dimColor: true })]
 
   const now = Date.now()
   const openId = openTurn === 'none' ? null : openTurn ?? S.turns.at(-1).id
   const newestFirst = [...S.turns].reverse()
-  const listed = newestFirst.slice(0, Math.max(3, Math.floor(maxRows / 3)))
+  const listed = newestFirst.slice(0, Math.max(compact ? 1 : 3, Math.floor(maxRows / 3)))
   const open = turnById(openId)
   if (open && !listed.includes(open)) listed.push(open)
 
-  const out = [T(Text, L.activitiesHint, { dimColor: true })]
-  let room = Math.max(4, maxRows - listed.length - 1)
+  const out = compact ? [] : [T(Text, L.activitiesHint, { dimColor: true })]
+  let room = compact ? maxRows - listed.length : Math.max(4, maxRows - listed.length - out.length)
 
   for (const t of listed) {
     const { mark } = turnMark(t)
@@ -1087,7 +1156,8 @@ function activitiesBody(ui, $, width, maxRows) {
         redraw($)
       },
     }))
-    if (t.id !== openId) continue
+    // Compact, the open activity shows its calls only in the rows left after the list
+    if (t.id !== openId || (compact && room < 2)) continue
 
     const ind = '    '
     const byTool = Object.entries(t.byTool).sort((a, b) => b[1] - a[1])
@@ -1097,14 +1167,18 @@ function activitiesBody(ui, $, width, maxRows) {
       continue
     }
     out.push(T(Text, trunc(ind + byTool.map(([n, c]) => `${n} ×${c}`).join(' · '), width), { color: 'cyan' }))
-    out.push(T(Text, trunc(`${ind}✦ ${t.api} ${L.req} · ${fmtTok(t.tokIn)} ${L.inTok} / ${fmtTok(t.tokOut)} ${L.outTok}`, width),
-      { dimColor: true }))
-    room -= 2
+    if (!compact) {
+      out.push(T(Text, trunc(`${ind}✦ ${t.api} ${L.req} · ${fmtTok(t.tokIn)} ${L.inTok} / ${fmtTok(t.tokOut)} ${L.outTok}`, width),
+        { dimColor: true }))
+    }
+    room -= compact ? 1 : 2
 
     const calls = S.spans.filter((s) => s.turn === t.id && s.kind !== 'api')
     const evicted = t.calls - calls.length
-    const shown = calls.slice(-Math.max(1, room - (evicted > 0 ? 1 : 0) - 1))
-    if (evicted > 0) out.push(T(Text, ind + L.earlier(evicted), { dimColor: true }))
+    const shown = compact
+      ? calls.slice(calls.length - (calls.length <= room ? calls.length : Math.max(0, room - 1)))
+      : calls.slice(-Math.max(1, room - (evicted > 0 ? 1 : 0) - 1))
+    if (evicted > 0 && !compact) out.push(T(Text, ind + L.earlier(evicted), { dimColor: true }))
     if (shown.length < calls.length) out.push(T(Text, ind + L.more(calls.length - shown.length), { dimColor: true }))
 
     const nameW = 18
@@ -1132,9 +1206,11 @@ function activitiesBody(ui, $, width, maxRows) {
 }
 
 // The session at a glance, then what each tab answers, its numbers included, and what only the
-// browser shows; with rows to spare, the session's title on top
-async function homeBody(ui, $, width, maxRows) {
+// browser shows; with rows to spare, the session's title on top. Compact, below the transcript: the
+// glance alone, in two columns when the band is wide enough, since the tab row already names the tabs
+async function homeBody(ui, $, width, maxRows, compact = false) {
   const { Box, Text } = ui
+  const colW = compact && width >= HOME_COLUMNS_MIN ? Math.floor((width - 3) / 2) : width
   const t = S.totals
   let u = null
   try {
@@ -1152,7 +1228,7 @@ async function homeBody(ui, $, width, maxRows) {
   const effort = await readEffort($)
 
   const row = (key, label, text, style) =>
-    Box({ key, flexDirection: 'row', children: [T(Text, pad(label, 12)), T(Text, trunc(text, Math.max(0, width - 12)), style)] })
+    Box({ key, flexDirection: 'row', children: [T(Text, pad(label, 12)), T(Text, trunc(text, Math.max(0, colW - 12)), style)] })
   const info = [row('h-model', L.homeModel, (model ?? '—') + (effort ? ` · ${L.homeEffort} ${effort}` : ''), { bold: true })]
   if (u?.context) {
     const pct = contextPct(u.context)
@@ -1167,7 +1243,7 @@ async function homeBody(ui, $, width, maxRows) {
   for (const r of limits) {
     info.push(meterRow(ui, 'h-lim-' + r.kind, limitName(r.kind), r.percentUsed ?? 0, r.resetsAt ? resetText(r.resetsAt) : ''))
   }
-  if (!limits.length) info.push(T(Text, trunc(L.noLimits, width), { dimColor: true }))
+  if (!limits.length) info.push(T(Text, trunc(L.noLimits, colW), { dimColor: true }))
   // The main session's cache, the one number here that asks for action before it runs out
   const main = S.agents.get('main')
   if (main?.cacheAt) {
@@ -1178,6 +1254,17 @@ async function homeBody(ui, $, width, maxRows) {
       : L.ifTtl(fmtDur(Math.max(0, TTL_MS['5m'] - since)), fmtDur(Math.max(0, TTL_MS['1h'] - since)))
     const color = !main.ttl ? undefined : left <= 0 ? 'red' : left < 60_000 ? 'yellow' : 'green'
     info.push(row('h-cache', L.cache, `${text} · ${L.recache(fmtTok(main.cachePrompt))}`, color ? { color } : { dimColor: true }))
+  }
+  if (compact) {
+    if (colW === width) return info.slice(0, Math.max(1, maxRows))
+    const half = Math.ceil(info.length / 2)
+    const column = (key, children) => Box({ key, flexDirection: 'column', width: colW, children })
+    return [Box({
+      key: 'h-cols',
+      flexDirection: 'row',
+      columnGap: 3,
+      children: [column('h-left', info.slice(0, half)), column('h-right', info.slice(half))],
+    })]
   }
 
   // The tabs here, then the views only the browser has
@@ -1219,8 +1306,9 @@ function fmtMetric(v, unit) {
   return `${v.toFixed(2)}${L.unit[unit]}`
 }
 
-// One finding is two lines: what was seen, with a button to mark the change as applied, and what to do
-function insightsBody(ui, $, width, maxRows) {
+// One finding is two lines: what was seen, with a button to mark the change as applied, and what to do.
+// Compact, below the transcript, without the blank lines.
+function insightsBody(ui, $, width, maxRows, compact = false) {
   const { Box, Text, Button } = ui
   if (!cfg.insights) return [T(Text, L.insightsOff, { dimColor: true })]
 
@@ -1229,7 +1317,8 @@ function insightsBody(ui, $, width, maxRows) {
   if (past) out.push(T(Text, trunc(L.historyLine(past), width), { dimColor: true }))
 
   const trends = compareApplied(projectSessions(), appliedMarks())
-  const tail = (trends.length ? trends.length + 2 : 0) + (cfg.aiHint ? 2 : 0)
+  const gap = compact ? [] : [T(Text, ' ')]
+  const tail = (trends.length ? trends.length + 1 + gap.length : 0) + (cfg.aiHint ? 1 + gap.length : 0)
   const list = findings()
   if (!list.length) out.push(T(Text, L.noFindings, { dimColor: true }))
 
@@ -1261,56 +1350,118 @@ function insightsBody(ui, $, width, maxRows) {
   if (list.length > fit) out.push(T(Text, L.moreInExport(list.length - fit), { dimColor: true }))
 
   if (trends.length) {
-    out.push(T(Text, ' '), T(Text, L.trends, { bold: true }))
+    out.push(...gap, T(Text, L.trends, { bold: true }))
     for (const t of trends) {
       const line = L.trendLine(L.ruleName[t.rule], fmtMetric(t.before, t.unit) ?? '—', fmtMetric(t.after, t.unit), t.nBefore, t.nAfter)
       const better = t.after != null && t.before != null && t.after < t.before
       out.push(T(Text, trunc('  ' + line, width), better ? { color: 'green' } : { dimColor: true }))
     }
   }
-  if (cfg.aiHint) out.push(T(Text, ' '), T(Text, trunc(L.aiHint, width), { color: 'cyan' }))
+  if (cfg.aiHint) out.push(...gap, T(Text, trunc(L.aiHint, width), { color: 'cyan' }))
   return out
 }
 
-function configBody(ui, $, width) {
-  const { Text, Button } = ui
+// The settings in groups, each with its note. Compact, below the transcript: the settings alone,
+// without the notes and the blank lines, in two columns when the band is wide enough.
+function configBody(ui, $, width, compact = false) {
+  const { Box, Text, Button } = ui
+  const columns = compact && width >= HOME_COLUMNS_MIN
+  const colW = columns ? Math.floor((width - 3) / 2) : width
   const check = (on) => (on ? '[x] ' : '[ ] ')
   const next = (k) => CHOICES[k][(CHOICES[k].indexOf(cfg[k]) + 1) % CHOICES[k].length]
   const row = (key, label, onPress, dim = false) =>
-    Button({ key: 'cfg-' + key, label: trunc(label, width), plain: true, dimColor: dim, onPress: async () => {
+    Button({ key: 'cfg-' + key, label: trunc(label, colW), plain: true, dimColor: dim, onPress: async () => {
       await onPress()
       redraw($)
     } })
 
+  const groups = [
+    [L.cfgNotifyNote, [
+      row('notifyDone', check(cfg.notifyDone) + L.cfgNotifyDone, () => saveConfig($, { notifyDone: !cfg.notifyDone })),
+      row('notifyDoneMin', '    ' + L.cfgNotifyDoneMin(cfg.notifyDoneMin),
+        () => saveConfig($, { notifyDoneMin: next('notifyDoneMin') }), !cfg.notifyDone),
+      row('notifyCache', check(cfg.notifyCache) + L.cfgNotifyCache, () => saveConfig($, { notifyCache: !cfg.notifyCache })),
+      row('notifyCacheLead', '    ' + L.cfgNotifyCacheLead(cfg.notifyCacheLead),
+        () => saveConfig($, { notifyCacheLead: next('notifyCacheLead') }), !cfg.notifyCache),
+    ]],
+    // The note goes between the two settings and the button that deletes what they kept
+    [L.cfgInsightsNote, [
+      row('insights', check(cfg.insights) + L.cfgInsights, async () => {
+        await saveConfig($, { insights: !cfg.insights })
+        if (cfg.insights) await loadInsights($)
+      }),
+      row('aiHint', check(cfg.aiHint) + L.cfgAiHint, () => saveConfig($, { aiHint: !cfg.aiHint })),
+    ], [row('clearHistory', '    ' + L.cfgClearHistory, () => clearHistory($), true)]],
+    [L.cfgAutoExportNote, [
+      row('autoExport', check(cfg.autoExport) + L.cfgAutoExport, () => saveConfig($, { autoExport: !cfg.autoExport })),
+    ]],
+    [L.cfgBadgeNote, [
+      row('badge', check(cfg.badge) + L.cfgBadge(badgeText()), async () => {
+        await saveConfig($, { badge: !cfg.badge })
+        showBadge($)
+      }),
+    ]],
+    [L.cfgPositionNote, [
+      row('position', `${L.cfgPosition}: ${cfg.position === 'side' ? L.posSide : L.posBottom}`,
+        () => setPosition($, next('position'))),
+    ]],
+    [null, [
+      row('language', `${L.language}: ${langPref === 'auto' ? L.langAuto : langPref.toUpperCase()}`,
+        () => saveLanguage($, LANGS[(LANGS.indexOf(langPref) + 1) % LANGS.length])),
+    ]],
+  ]
+
+  if (compact) {
+    const rows = groups.map(([, items, after = []]) => [...items, ...after])
+    if (!columns) return rows.flat()
+    // Notifications, export and badge on the left; insights, position and language on the right
+    const column = (key, children) => Box({ key, flexDirection: 'column', width: colW, children })
+    return [Box({
+      key: 'cfg-cols',
+      flexDirection: 'row',
+      columnGap: 3,
+      children: [column('cfg-left', [rows[0], rows[2], rows[3]].flat()), column('cfg-right', [rows[1], rows[4], rows[5]].flat())],
+    })]
+  }
   const out = [T(Text, trunc(L.cfgTitle, width), { dimColor: true }), T(Text, ' ')]
-  out.push(row('notifyDone', check(cfg.notifyDone) + L.cfgNotifyDone, () => saveConfig($, { notifyDone: !cfg.notifyDone })))
-  out.push(row('notifyDoneMin', '    ' + L.cfgNotifyDoneMin(cfg.notifyDoneMin),
-    () => saveConfig($, { notifyDoneMin: next('notifyDoneMin') }), !cfg.notifyDone))
-  out.push(row('notifyCache', check(cfg.notifyCache) + L.cfgNotifyCache, () => saveConfig($, { notifyCache: !cfg.notifyCache })))
-  out.push(row('notifyCacheLead', '    ' + L.cfgNotifyCacheLead(cfg.notifyCacheLead),
-    () => saveConfig($, { notifyCacheLead: next('notifyCacheLead') }), !cfg.notifyCache))
-  out.push(T(Text, trunc('    ' + L.cfgNotifyNote, width), { dimColor: true }))
-  out.push(T(Text, ' '))
-  out.push(row('insights', check(cfg.insights) + L.cfgInsights, async () => {
-    await saveConfig($, { insights: !cfg.insights })
-    if (cfg.insights) await loadInsights($)
-  }))
-  out.push(row('aiHint', check(cfg.aiHint) + L.cfgAiHint, () => saveConfig($, { aiHint: !cfg.aiHint })))
-  out.push(T(Text, trunc('    ' + L.cfgInsightsNote, width), { dimColor: true }))
-  out.push(row('clearHistory', '    ' + L.cfgClearHistory, () => clearHistory($), true))
-  out.push(T(Text, ' '))
-  out.push(row('autoExport', check(cfg.autoExport) + L.cfgAutoExport, () => saveConfig($, { autoExport: !cfg.autoExport })))
-  out.push(T(Text, trunc('    ' + L.cfgAutoExportNote, width), { dimColor: true }))
-  out.push(T(Text, ' '))
-  out.push(row('badge', check(cfg.badge) + L.cfgBadge(badgeText()), async () => {
-    await saveConfig($, { badge: !cfg.badge })
-    showBadge($)
-  }))
-  out.push(T(Text, trunc('    ' + L.cfgBadgeNote, width), { dimColor: true }))
-  out.push(T(Text, ' '))
-  out.push(row('language', `${L.language}: ${langPref === 'auto' ? L.langAuto : langPref.toUpperCase()}`,
-    () => saveLanguage($, LANGS[(LANGS.indexOf(langPref) + 1) % LANGS.length])))
+  groups.forEach(([note, items, after = []], i) => {
+    out.push(...items)
+    if (note) out.push(T(Text, trunc('    ' + note, width), { dimColor: true }))
+    out.push(...after)
+    if (i < groups.length - 1) out.push(T(Text, ' '))
+  })
   return out
+}
+
+// ---------------------------------------------------------------------------
+// Where the radar shows, as the Config tab or d chooses: a pane, which Claude Code docks beside the
+// transcript in fullscreen from 110 columns and otherwise seats above the prompt; or the band above
+// the prompt, compacted to the rows it has. A mod cannot place a pane itself, so below is the band.
+// paneOpen says the radar is on screen, in either place.
+// ---------------------------------------------------------------------------
+
+const PANE_OPEN = { id: PANE, title: 'Session Radar', focus: true, closeOnEscape: true, rows: 22, columns: 84 }
+
+async function openRadar($) {
+  if (cfg.position === 'side') await $.ui.open(PANE_OPEN)
+  paneOpen = true
+  redraw($)
+}
+
+async function closeRadar($) {
+  paneOpen = false
+  if (cfg.position === 'side') await $.ui.close({ id: PANE })
+  redraw($)
+}
+
+async function setPosition($, position) {
+  if (position === cfg.position) return
+  const wasOpen = paneOpen
+  // Closing the pane raises ui.close, which marks the radar closed; it reopens in its new place
+  if (wasOpen && cfg.position === 'side') await $.ui.close({ id: PANE })
+  await saveConfig($, { position })
+  if (wasOpen) await openRadar($)
+  else redraw($)
 }
 
 // ---------------------------------------------------------------------------
@@ -1331,6 +1482,7 @@ export function register(on) {
       cfg = { ...DEFAULTS }
     }
     cwd = e.cwd ?? cwd
+    if (!restoreDone) await restoreState($)
     let sessionId = null
     try {
       sessionId = await $.session.id()
@@ -1346,9 +1498,11 @@ export function register(on) {
     await $.command.register({ name: 'radar-web', description: L.cmdWeb, argumentHint: 'stop', immediate: true })
     await $.command.register({ name: 'radar-config', description: L.cmdConfig, immediate: true })
     // Keep the timers of running items moving, once a second, only when something is on screen;
-    // and warn before the cache expires, when the person asked for it
+    // and warn before the cache expires, when the person asked for it; and hand Claude Code what
+    // changed, for a reload
     $.clock.every(1000, () => {
       checkCache($)
+      if (saveDirty && Date.now() - lastSave >= SAVE_MS) void saveState($)
       if (paneOpen || S.spans.some((s) => !s.end)) $.ui.invalidate('ui.render')
     })
     return next(e)
@@ -1362,27 +1516,19 @@ export function register(on) {
       S = fresh()
       openTurn = null
       markWebDirty()
+      await saveState($)
     }
     return next(e)
   })
 
   on('command.run', { command: 'radar' }, async ($) => {
-    if (paneOpen) {
-      await $.ui.close({ id: PANE })
-      paneOpen = false
-      return {}
-    }
-    await $.ui.open({ id: PANE, title: 'Session Radar', focus: true, closeOnEscape: true, rows: 22, columns: 84 })
-    paneOpen = true
+    await (paneOpen ? closeRadar($) : openRadar($))
     return {}
   })
 
   on('command.run', { command: 'radar-config' }, async ($) => {
     tab = 'config'
-    if (!paneOpen) {
-      await $.ui.open({ id: PANE, title: 'Session Radar', focus: true, closeOnEscape: true, rows: 22, columns: 84 })
-      paneOpen = true
-    }
+    if (!paneOpen) await openRadar($)
     redraw($)
     return {}
   })
@@ -1473,6 +1619,7 @@ export function register(on) {
         calls: 0, fails: 0, api: 0, tokIn: 0, tokOut: 0, byTool: {},
       })
       if (S.turns.length > MAX_TURNS) S.turns.shift()
+      saveDirty = true
     }
     return next(e)
   })
@@ -1497,9 +1644,12 @@ export function register(on) {
       void (cfg.insights ? trackUsage($) : Promise.resolve()).then(() => {
         saveSession($)
         autoExport($)
+        saveDirty = true
       })
     }
     redraw($)
+    // Awaited, unlike the rest: a reload comes as the turn ends, and the activity must be in it
+    if (!e.agentId) await saveState($)
     return next(e)
   })
 
@@ -1565,104 +1715,169 @@ export function register(on) {
   // The pane
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     if (e.requestId !== PANE) return next(e)
-    const ui = $.ui.resolve(e)
-    const { Box, Text, Button, Link } = ui
     // Two cells narrower than the body: the pane's close mark is drawn over the first row's last cell
     const width = Math.max(40, (e.props.bodyColumns ?? 84) - 2)
-    const bodyRows = e.props.scroll?.bodyRows ?? 22
+    return radarTree($, $.ui.resolve(e), width, e.props.scroll?.bodyRows ?? 22, false)
+  })
 
-    const tabs = Box({
-      key: 'tabs',
-      flexDirection: 'row',
-      // Seven tabs fit a narrow pane only a cell apart
-      columnGap: width >= 70 ? 2 : 1,
-      children: TABS.map(([id, labelKey, hotkey]) => Button({
-        key: 'tab-' + id,
-        label: L[labelKey],
-        hotkey,
-        plain: true,
-        dimColor: tab !== id,
-        onPress: () => {
-          tab = id
-          redraw($)
-        },
-      })),
-    })
-
-    const actions = Box({
-      key: 'actions',
-      flexDirection: 'row',
-      columnGap: 2,
-      children: [
-        Button({ key: 'export', label: L.export, hotkey: 'e', plain: true, dimColor: true, onPress: () => exportJson($) }),
-        // Clearing cannot be undone: the first press asks, a second within a few seconds clears
-        Button({
-          key: 'reset',
-          label: Date.now() - clearArmedAt < CLEAR_CONFIRM_MS ? L.clearConfirm : L.clear,
-          hotkey: 'x',
-          plain: true,
-          dimColor: Date.now() - clearArmedAt >= CLEAR_CONFIRM_MS,
-          onPress: () => {
-            if (Date.now() - clearArmedAt < CLEAR_CONFIRM_MS) {
-              clearArmedAt = 0
-              S = fresh()
-              openTurn = null
-            } else {
-              clearArmedAt = Date.now()
-            }
-            redraw($)
-          },
-        }),
-        Button({
-          key: 'web',
-          label: L.web,
-          hotkey: 'w',
-          plain: true,
-          dimColor: !web?.url,
-          onPress: async () => {
-            if (!(await openWeb($))) $.ui.toast(L.webFailed)
-          },
-        }),
-        ...(web?.url && Link ? [Text({ wrap: 'truncate', children: [Link({ href: web.url, label: web.base.replace('http://', '') })] })] : []),
-        Button({
-          key: 'help',
-          label: L.help,
-          hotkey: 'h',
-          plain: true,
-          dimColor: !showHelp,
-          onPress: () => {
-            showHelp = !showHelp
-            redraw($)
-          },
-        }),
-      ],
-    })
-
-    // The details went to Home: here only what tells at a glance how the session is going
-    const t = S.totals
-    const fails = t.errors + t.denied
-    const status = Box({
-      key: 'status',
-      flexDirection: 'row',
-      children: [
-        T(Text, badgeText() + ' ', { color: badge.color, bold: true }),
-        T(Text, trunc(`⏱ ${fmtDur(Date.now() - S.startedAt)} · ${plural(S.turns.length, L.activity, L.activities)} · ` +
-          `${plural(t.calls, L.tool, L.tools)}`, width - 21), { dimColor: true }),
-        ...(fails ? [T(Text, ` · ${plural(fails, L.fail, L.fails)}`, { color: 'red' })] : []),
-      ],
-    })
-
-    // h: a few lines on how to read the tab, above it
-    const help = showHelp ? [...wrapText(L.helpText[tab], width).map((line) => T(Text, line, { color: 'cyan' })), T(Text, ' ')] : []
-    // Two rows fewer for the body, so the credit footer stays on screen
-    const room = Math.max(4, Math.max(6, bodyRows - 9) - help.length)
-    let body
-    if (tab === 'activities') body = activitiesBody(ui, $, width, room)
-    else if (tab === 'insights') body = insightsBody(ui, $, width, room)
-    else if (tab === 'config') body = configBody(ui, $, width)
-    else body = await homeBody(ui, $, width, room)
-
-    const credit = T(Text, trunc(L.credit, width), { dimColor: true })
-    return Box({ flexDirection: 'column', children: [tabs, actions, status, T(Text, ' '), ...help, ...body, T(Text, ' '), credit] })
+  // Below the transcript: the band above the prompt, while the radar is open there; a survey has it first.
+  // The band has no frame of its own, as the pane does, so the radar draws one in the badge's color to
+  // set it apart from the transcript; it takes two rows and four columns, and is left out under BAND_FRAME_MIN rows.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (!paneOpen || cfg.position !== 'bottom' || e.props.hasSurvey) return next(e)
+    const ui = $.ui.resolve(e)
+    const columns = e.props.bodyColumns ?? 80
+    const rows = e.props.maxRows ?? 12
+    if (rows < BAND_FRAME_MIN) return radarTree($, ui, Math.max(40, columns), Math.max(3, rows), true)
+    const tree = await radarTree($, ui, Math.max(40, columns - 4), rows - 2, true)
+    return ui.Box({ key: 'frame', flexDirection: 'column', borderStyle: 'round', borderColor: badge.color, paddingX: 1, children: [tree] })
   })
 }
+
+// The radar's drawing, in the pane or, compact, in the band: the tab and action rows, the status
+// line, then the tab. Compact keeps the rows to what the band has: tabs and actions share a row when
+// they fit, no blank rows, Home and Config without their notes, the credit only where there is room.
+async function radarTree($, ui, width, bodyRows, compact) {
+  const { Box, Text, Button, Link } = ui
+  const tabs = Box({
+    key: 'tabs',
+    flexDirection: 'row',
+    // Seven tabs fit a narrow pane only a cell apart
+    columnGap: width >= 70 ? 2 : 1,
+    children: TABS.map(([id, labelKey, hotkey]) => Button({
+      key: 'tab-' + id,
+      label: L[labelKey],
+      hotkey,
+      plain: true,
+      dimColor: tab !== id,
+      onPress: () => {
+        tab = id
+        redraw($)
+      },
+    })),
+  })
+
+  const actions = Box({
+    key: 'actions',
+    flexDirection: 'row',
+    columnGap: 2,
+    children: [
+      Button({ key: 'export', label: L.export, hotkey: 'e', plain: true, dimColor: true, onPress: () => exportJson($) }),
+      // Clearing cannot be undone: the first press asks, a second within a few seconds clears
+      Button({
+        key: 'reset',
+        label: Date.now() - clearArmedAt < CLEAR_CONFIRM_MS ? L.clearConfirm : L.clear,
+        hotkey: 'x',
+        plain: true,
+        dimColor: Date.now() - clearArmedAt >= CLEAR_CONFIRM_MS,
+        onPress: () => {
+          if (Date.now() - clearArmedAt < CLEAR_CONFIRM_MS) {
+            clearArmedAt = 0
+            S = fresh()
+            openTurn = null
+            void saveState($)
+          } else {
+            clearArmedAt = Date.now()
+          }
+          redraw($)
+        },
+      }),
+      Button({
+        key: 'web',
+        label: L.web,
+        hotkey: 'w',
+        plain: true,
+        dimColor: !web?.url,
+        onPress: async () => {
+          if (!(await openWeb($))) $.ui.toast(L.webFailed)
+        },
+      }),
+      ...(web?.url && Link ? [Text({ wrap: 'truncate', children: [Link({ href: web.url, label: web.base.replace('http://', '') })] })] : []),
+      // As DevTools' dock button: the place it goes to, not the one it is in
+      Button({
+        key: 'dock',
+        label: dockLabel(),
+        hotkey: 'd',
+        plain: true,
+        dimColor: true,
+        onPress: () => setPosition($, cfg.position === 'side' ? 'bottom' : 'side'),
+      }),
+      Button({
+        key: 'help',
+        label: L.help,
+        hotkey: 'h',
+        plain: true,
+        dimColor: !showHelp,
+        onPress: () => {
+          showHelp = !showHelp
+          redraw($)
+        },
+      }),
+      // The band has no close mark of its own, as the pane does
+      ...(compact ? [Button({ key: 'close', label: L.close, hotkey: 'q', plain: true, dimColor: true, onPress: () => closeRadar($) })] : []),
+    ],
+  })
+
+  // The details went to Home: here only what tells at a glance how the session is going. In the band,
+  // which takes the keys only after ctrl+x tab or a click, it says so, and the credit follows where it fits
+  const t = S.totals
+  const fails = t.errors + t.denied
+  const summary = trunc(`⏱ ${fmtDur(Date.now() - S.startedAt)} · ${plural(S.turns.length, L.activity, L.activities)} · ` +
+    `${plural(t.calls, L.tool, L.tools)}`, width - 21)
+  const failText = fails ? ` · ${plural(fails, L.fail, L.fails)}` : ''
+  let spare = width - badgeText().length - 1 - summary.length - failText.length
+  const extra = []
+  for (const text of compact ? [L.bandKeys, L.credit] : []) {
+    if (spare < text.length + 3) break
+    extra.push(T(Text, ` · ${text}`, { dimColor: true }))
+    spare -= text.length + 3
+  }
+  const status = Box({
+    key: 'status',
+    flexDirection: 'row',
+    children: [
+      T(Text, badgeText() + ' ', { color: badge.color, bold: true }),
+      T(Text, summary, { dimColor: true }),
+      ...(fails ? [T(Text, failText, { color: 'red' })] : []),
+      ...extra,
+    ],
+  })
+
+  // h: a few lines on how to read the tab, above it
+  const help = showHelp ? wrapText(L.helpText[tab], width).map((line) => T(Text, line, { color: 'cyan' })) : []
+  let body
+  if (compact) {
+    // Tabs and actions share a row when both fit
+    const header = buttonsWidth(TABS.map(([, k]) => L[k]), 2) + 2 + buttonsWidth(actionLabels(), 2) <= width
+      ? [Box({ key: 'top', flexDirection: 'row', columnGap: 2, children: [tabs, actions] })]
+      : [tabs, actions]
+    const room = Math.max(1, bodyRows - header.length - 1 - help.length)
+    if (tab === 'activities') body = activitiesBody(ui, $, width, room, true)
+    else if (tab === 'insights') body = insightsBody(ui, $, width, room, true)
+    else if (tab === 'config') body = configBody(ui, $, width, true)
+    else body = await homeBody(ui, $, width, room, true)
+    return Box({ flexDirection: 'column', children: [...header, status, ...help, ...body] })
+  }
+
+  // Two rows fewer for the body, so the credit footer stays on screen
+  const room = Math.max(4, Math.max(6, bodyRows - 9) - help.length - (help.length ? 1 : 0))
+  if (tab === 'activities') body = activitiesBody(ui, $, width, room)
+  else if (tab === 'insights') body = insightsBody(ui, $, width, room)
+  else if (tab === 'config') body = configBody(ui, $, width)
+  else body = await homeBody(ui, $, width, room)
+
+  const credit = T(Text, trunc(L.credit, width), { dimColor: true })
+  const helpRows = help.length ? [...help, T(Text, ' ')] : []
+  return Box({ flexDirection: 'column', children: [tabs, actions, status, T(Text, ' '), ...helpRows, ...body, T(Text, ' '), credit] })
+}
+
+const dockLabel = () => (cfg.position === 'side' ? L.dockBottom : L.dockSide)
+
+// What the action row takes, for the band to tell whether it fits beside the tabs
+function actionLabels() {
+  const clear = Date.now() - clearArmedAt < CLEAR_CONFIRM_MS ? L.clearConfirm : L.clear
+  return [L.export, clear, L.web, ...(web?.base ? [web.base.replace('http://', '')] : []), dockLabel(), L.help, L.close]
+}
+
+// A plain Button is drawn as its hotkey, a separator and its label
+const buttonsWidth = (labels, gap) => labels.reduce((n, label) => n + label.length + 3, 0) + gap * (labels.length - 1)

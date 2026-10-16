@@ -219,7 +219,17 @@ Inside the pane:
 | `w` | Open the browser view, same as `/radar-web` |
 | `e` | Export, same as `/radar-export` |
 | `x` | Clear what has been recorded: press it twice within 3 seconds |
+| `d` | Move the radar below the transcript, or back beside it |
 | `Esc` | Close the pane |
+
+**Beside or below**, as DevTools docks: `d`, or *Radar position* in Config, kept for your next
+sessions. Beside, the radar is a pane, which Claude Code docks next to the transcript in fullscreen
+from 110 columns, and seats above the prompt otherwise. Below, it takes the band above the prompt,
+compact: tabs and actions on one row when they fit, Home and Config in two columns on a wide
+terminal, no notes or blank lines, in a rounded frame of the badge's color that sets it apart from
+the transcript (from 8 rows; under that the rows go to the radar). The band takes the keys after `ctrl+x tab` or a click, `q` closes
+it, and a survey from Claude Code has the band first. A mod cannot place a pane itself, so there is
+no left side.
 
 The radar starts over on `/clear`, `/resume` and `/branch`, because those start a different
 conversation. What it recorded is not kept between sessions unless you export it, or, with insights

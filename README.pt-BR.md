@@ -49,8 +49,17 @@ precisa de espaço: linha do tempo, agentes, cada requisição com o cache, grá
 máquina.
 
 No painel: `1` a `4` trocam de aba (Início, Atividades, Insights, Config), `h` explica como ler a
-aba, `w` abre no navegador, `e` exporta, `x` limpa (aperte duas vezes em até 3 segundos), `Esc`
-fecha. O idioma fica em Config e em `/radar-lang`; em `auto` (o padrão) a interface segue o idioma
+aba, `w` abre no navegador, `e` exporta, `x` limpa (aperte duas vezes em até 3 segundos), `d` move
+o radar para baixo do transcript ou de volta para a lateral, `Esc` fecha.
+
+**Na lateral ou abaixo**, como o DevTools: `d`, ou *Posição do radar* em Config, que fica para as
+próximas sessões. Na lateral o radar é um painel, que o Claude Code encaixa ao lado do transcript em
+tela cheia a partir de 110 colunas e, fora isso, acima do prompt. Abaixo, ele ocupa a faixa acima do
+prompt, compacto: abas e ações numa linha quando cabem, Início e Config em duas colunas num terminal
+largo, sem notas nem linhas em branco, numa moldura arredondada na cor do crachá que a separa do
+transcript (a partir de 8 linhas; abaixo disso as linhas ficam para o radar). A faixa recebe as teclas depois de `ctrl+x tab` ou de um
+clique, `q` fecha, e uma pesquisa do Claude Code tem a vez na faixa. Um mod não posiciona o painel
+sozinho, então não há lado esquerdo. O idioma fica em Config e em `/radar-lang`; em `auto` (o padrão) a interface segue o idioma
 do sistema.
 
 - **Início:** a aba que abre primeiro. Mostra o modelo e o nível de esforço, quanto do contexto está

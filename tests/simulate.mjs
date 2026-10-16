@@ -28,7 +28,10 @@ const writes = []
 const notes = []
 const statuses = []
 const stored = new Map()
+// The session's state, held by Claude Code across reloads of the mod; a round trip through JSON too
+const state = new Map()
 const commands = []
+const panes = []
 let tick = () => {}
 const $ = {
   ui: {
@@ -40,8 +43,15 @@ const $ = {
       notes.push({ text, ...options })
       return { isSent: true, channel: 'terminal_bell' }
     },
-    open: async () => ({ isPlaced: true }),
-    close: async () => {},
+    open: async (pane) => {
+      panes.push(['open', pane.id])
+      return { isPlaced: true }
+    },
+    // As Claude Code does, closing a pane raises ui.close
+    close: async ({ id }) => {
+      panes.push(['close', id])
+      await fire('ui.close', { id, origin: { kind: 'plugin' } })
+    },
   },
   command: { register: async (c) => commands.push(c) },
   // A round trip through JSON, as the real store does
@@ -49,6 +59,16 @@ const $ = {
     get: async (k) => (stored.has(k) ? JSON.parse(stored.get(k)) : undefined),
     set: async (k, v) => stored.set(k, JSON.stringify(v)),
     delete: async (k) => stored.delete(k),
+  },
+  state: {
+    get: async (ref) => {
+      const key = `${ref.plugin}.${ref.key}`
+      return state.has(key) ? { value: JSON.parse(state.get(key)), version: 1 } : { value: undefined, version: 0 }
+    },
+    set: async (ref, value) => {
+      state.set(`${ref.plugin}.${ref.key}`, JSON.stringify(value))
+      return { isSet: true, version: 1 }
+    },
   },
   clock: { every: (_ms, fn) => (tick = fn) },
   session: {
@@ -461,5 +481,132 @@ findKey(drawn, 'reset').onPress()
 drawn = await drawPane()
 assert.equal(activitiesNow(), '0')
 Date.now = realNow
+
+// Where the radar shows, as in DevTools: beside the transcript (the pane) or below it (the band
+// above the prompt), with d in the radar or the Config row, kept for the next sessions
+await fire('turn.start', { turnId: 'b1', text: 'look at the band' })
+await fire('tool.call', { tool: 'Read', file_path: 'band.js' }, async () => ({}))
+await fire('turn.complete', { turnId: 'b1', durationMs: 10 })
+await fire('command.run', { command: 'radar-lang', args: 'en' })
+// Rows as the terminal lays them out: a column stacks its children, a row sets them side by side
+// and a border adds a row above and below
+const rowsOf = (n) => (n == null || typeof n === 'string' || n.type !== 'Box' ? 1
+  : (n.borderStyle ? 2 : 0) + (n.flexDirection === 'column' ? (n.children ?? []).reduce((r, c) => r + rowsOf(c), 0)
+    : Math.max(1, ...(n.children ?? []).map(rowsOf))))
+const drawBand = (cols, maxRows, extra = {}) =>
+  fire('ui.render', { component: 'AbovePrompt', props: { bodyColumns: cols, maxRows, hasSurvey: false, ...extra } }, async () => 'engine band')
+assert.equal(await drawBand(160, 12), 'engine band', 'the band is left alone while the radar is a pane')
+assert.equal(storedJson('config').position, 'side', 'beside the transcript by default')
+let pane = await drawPane()
+assert.match(flat(findKey(pane, 'actions')), /d: Dock below/)
+assert.equal(findKey(pane, 'close'), undefined, 'the pane has its own close mark')
+panes.length = 0
+await findKey(pane, 'dock').onPress()
+assert.equal(storedJson('config').position, 'bottom')
+assert.deepEqual(panes, [['close', 'session-radar']], 'the pane closes and nothing opens in its place')
+for (const id of TAB_IDS) {
+  for (const [cols, maxRows] of [[200, 12], [160, 9], [90, 8], [60, 6]]) {
+    const band = await drawBand(cols, maxRows)
+    findKey(band, 'tab-' + id).onPress()
+    const drawn = await drawBand(cols, maxRows)
+    const rows = rowsOf(drawn)
+    const text = flat(drawn)
+    assert.ok(text.length > 0, `band ${id} drew nothing`)
+    // Config fits in two columns on a wide band of 10 rows or more; otherwise the band scrolls it
+    if (id !== 'config' || (cols >= 130 && maxRows >= 10)) assert.ok(rows <= maxRows, `band ${id} at ${cols}x${maxRows} takes ${rows} rows`)
+    assert.ok(!text.includes('    It also shows'), 'no notes below the transcript')
+    if (PRINT && cols === 160) console.log(`──── band ${id} ${cols}x${maxRows}
+${text}
+`)
+  }
+}
+let band = await drawBand(200, 12)
+findKey(band, 'tab-home').onPress()
+band = await drawBand(200, 12)
+assert.ok(findKey(band, 'top'), 'tabs and actions share a row when both fit')
+assert.ok(findKey(band, 'h-cols'), 'Home takes two columns on a wide band')
+assert.match(flat(findKey(band, 'status')), /ctrl\+x tab for the keys/)
+assert.match(flat(band), /Context/)
+assert.doesNotMatch(flat(band), /Where to look/, 'the tab row already names the tabs')
+// A frame in the badge's color sets the band apart from the transcript, when the rows allow it
+const frame = findKey(band, 'frame')
+assert.equal(frame.borderStyle, 'round')
+assert.match(frame.borderColor, /^(cyan|magenta|blue|green)$/)
+assert.equal(findKey(await drawBand(60, 7), 'frame'), undefined, 'a band of 7 rows keeps them for the radar')
+band = await drawBand(90, 8)
+assert.ok(!findKey(band, 'top') && findKey(band, 'tabs'), 'a narrow band puts them on two rows')
+assert.ok(!findKey(band, 'h-cols'), 'and Home in one column')
+assert.equal(await drawBand(200, 12, { hasSurvey: true }), 'engine band', 'a survey has the band first')
+findKey(band, 'tab-config').onPress()
+assert.ok(findKey(await drawBand(200, 12), 'cfg-cols'), 'Config takes two columns on a wide band')
+assert.match(flat(await drawPane()), /Radar position: below/)
+findKey(band, 'tab-home').onPress()
+// q closes it, /radar opens it again below, without a pane
+await findKey(band, 'close').onPress()
+assert.equal(await drawBand(200, 12), 'engine band')
+panes.length = 0
+await fire('command.run', { command: 'radar' })
+assert.deepEqual(panes, [])
+assert.notEqual(await drawBand(200, 12), 'engine band')
+// The Config row switches back beside the transcript: the pane opens, the band is left alone
+findKey(await drawBand(200, 12), 'tab-config').onPress()
+await findKey(await drawBand(200, 12), 'cfg-position').onPress()
+assert.equal(storedJson('config').position, 'side')
+assert.deepEqual(panes, [['open', 'session-radar']])
+assert.equal(await drawBand(200, 12), 'engine band')
+assert.match(flat(await drawPane()), /Radar position: side/)
+findKey(await drawPane(), 'tab-home').onPress()
+await fire('command.run', { command: 'radar' })
+
+// A reload of the mod (an update, /reload-plugins, a hot reload) carries on from what the session
+// recorded: a fresh copy of the module reads it back from the session's state on its first start
+await fire('turn.start', { turnId: 'r1', text: 'before the reload' })
+await fire('tool.call', { tool: 'Read', file_path: 'a.js' }, async () => ({}))
+await fire('turn.complete', { turnId: 'r1', durationMs: 10 })
+assert.equal(JSON.parse(state.get('session-radar.session')).S.turns.at(-1).prompt, 'before the reload',
+  'the activity is handed over as it ends')
+// A call still running when the old copy goes away, written by the clock once SAVE_MS has passed
+void fire('tool.call', { tool: 'Bash', command: 'sleep 99' }, () => new Promise(() => {}))
+at(2500)
+tick()
+await sleep(5)
+Date.now = realNow
+await fire('command.run', { command: 'radar-export' })
+const beforeReload = JSON.parse(writes.at(-1).text)
+
+const reloaded = []
+const copy = await import('../hooks/register.js?reload')
+copy.register((name, a, b) => reloaded.push({ name, matcher: b ? a : null, fn: b ?? a }))
+const fireCopy = (name, ev, next = async (e) => e) =>
+  reloaded.find((x) => x.name === name && matches(x, ev)).fn($, ev, next)
+await fireCopy('session.start', { cwd: '/work/app' })
+const writesBefore = writes.length
+await fireCopy('command.run', { command: 'radar-export' })
+assert.equal(writes.length, writesBefore + 1)
+const afterReload = JSON.parse(writes.at(-1).text)
+assert.equal(afterReload.startedAt, beforeReload.startedAt, 'the same conversation, not a new one')
+assert.deepEqual(afterReload.totals, beforeReload.totals, 'nothing recorded is lost')
+assert.deepEqual(afterReload.turns, beforeReload.turns)
+assert.equal(afterReload.spans.length, beforeReload.spans.length)
+const cut = afterReload.spans.find((s) => s.label === 'sleep 99')
+assert.equal(cut.status, 'interrupted', 'a call the old copy never saw end is closed, not left running')
+assert.ok(cut.end)
+// New events go on from there, with ids that do not collide
+await fireCopy('turn.start', { turnId: 'r2', text: 'after the reload' })
+await fireCopy('tool.call', { tool: 'Grep', pattern: 'x' }, async () => ({}))
+await fireCopy('turn.complete', { turnId: 'r2', durationMs: 10 })
+await fireCopy('command.run', { command: 'radar-export' })
+const carried = JSON.parse(writes.at(-1).text)
+assert.equal(carried.turns.length, beforeReload.turns.length + 1)
+assert.equal(carried.totals.calls, beforeReload.totals.calls + 1)
+assert.equal(new Set(carried.spans.map((s) => s.id)).size, carried.spans.length, 'span ids stay unique')
+// /clear starts over, and a reload after it does not bring the old conversation back
+await fireCopy('session.end', { reason: 'clear' })
+const third = []
+;(await import('../hooks/register.js?reload2')).register((name, a, b) => third.push({ name, matcher: b ? a : null, fn: b ?? a }))
+const fireThird = (name, ev, next = async (e) => e) => third.find((x) => x.name === name && matches(x, ev)).fn($, ev, next)
+await fireThird('session.start', { cwd: '/work/app' })
+await fireThird('command.run', { command: 'radar-export' })
+assert.equal(JSON.parse(writes.at(-1).text).turns.length, 0)
 
 console.log('session-radar: all checks passed')

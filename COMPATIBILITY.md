@@ -70,6 +70,8 @@ here, treat the drawing and the subagent links as unverified on your build. The 
 | `$.process.spawn`, `$.process.run` and `$.http.fetch`, for the browser view only | Claude Code 2.1.300 (the build it was run on) |
 | `$.ui.status`, `$.session.id` and `$.session.model`, for the session badge | Claude Code 2.1.300 (the build it was validated on) |
 | `$.ui.notify`, `$.fs.read` and `$.store.delete`, for notifications and insights | Claude Code 2.1.300 (the build it was validated and loaded on) |
+| `$.state.get` and `$.state.set`, so a reload of the mod keeps what it recorded | Claude Code 2.1.301 (the build it was validated on) |
+| `AbovePrompt` render site, for the radar below the transcript | Claude Code 2.1.301 (the build it was validated on) |
 
 The browser view also needs Node.js 20 or later on the `PATH`. Without it, `/radar-web` says so and
 the rest of the mod is unaffected.
