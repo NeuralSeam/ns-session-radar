@@ -95,6 +95,7 @@ const $ = {
     model: async () => 'claude-sonnet-5-5',
     usage: async () => ({ context: { tokens: 50000, window: 200000, percent: 25 }, cost: { usd: 0.12 }, rateLimits: [] }),
   },
+  config: { list: async () => [{ key: 'effortLevel', value: 'medium' }] },
   env: { get: async () => process.env.OS },
   process: {
     spawn: (req) => spawnImpl(req),
@@ -146,6 +147,36 @@ async function waitFor(check, ms = 5000) {
 
 const exited = (child) => child.exitCode !== null || child.signalCode !== null
 
+// Reads the page's event stream until `enough(frames)` holds, or 6 seconds pass
+function events(port, token, enough) {
+  return new Promise((resolve) => {
+    const frames = []
+    const req = http.request({ host: '127.0.0.1', port, path: `/api/events?t=${token}`, headers: { host: `127.0.0.1:${port}` } }, (res) => {
+      let buf = ''
+      res.on('data', (chunk) => {
+        buf += chunk
+        let i
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, i)
+          buf = buf.slice(i + 2)
+          const ev = /^event: (\w+)$/m.exec(block)?.[1]
+          if (ev) frames.push({ ev, data: JSON.parse(/^data: (.*)$/m.exec(block)[1]) })
+        }
+        if (enough(frames)) {
+          req.destroy()
+          resolve(frames)
+        }
+      })
+    })
+    req.on('error', () => resolve(frames))
+    req.end()
+    setTimeout(() => {
+      req.destroy()
+      resolve(frames)
+    }, 6000)
+  })
+}
+
 // ---------------------------------------------------------------------------
 // The mod: /radar-web starts the server, sends what it collected, /radar-web stop ends it
 // ---------------------------------------------------------------------------
@@ -190,6 +221,9 @@ assert.ok(['cyan', 'magenta', 'blue', 'green'].includes(badge.color))
 assert.equal(badge.project, 'my-app', 'the folder name, from a Windows path')
 assert.equal(badge.cwd, WIN_CWD)
 assert.equal(badge.model, 'sonnet-5-5')
+// Only the effort's value from the /config rows; insights are off, so the page gets none of them
+assert.equal(badge.effort, 'medium')
+assert.equal(state.insightsView, null)
 // The release, for the page's footer
 const { version } = JSON.parse(await import('node:fs').then((fs) => fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')))
 assert.equal(state.version, version)
@@ -208,6 +242,33 @@ assert.ok(await waitFor(async () => {
   state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
   return state.totals.calls === 3
 }, 3000), 'live update')
+
+// The machine's memory: the samples so far on connecting, then a new one every couple of seconds
+const systemFrames = (frames) => frames.filter((f) => f.ev === 'system')
+const frames = await events(port, viewToken, (fs) => systemFrames(fs).length >= 2)
+const [first, next] = systemFrames(frames)
+assert.ok(first?.data.memory.length >= 1, 'the history comes on connecting')
+assert.ok(next?.data.memory.length === 1, 'then one sample at a time')
+for (const m of [...first.data.memory, ...next.data.memory]) {
+  assert.ok(m.total > 0 && m.free >= 0 && m.free <= m.total, `a sane sample: ${JSON.stringify(m)}`)
+}
+assert.ok(next.data.memory[0].at > first.data.memory.at(-1).at, 'samples move forward')
+assert.ok(frames.findIndex((f) => f.ev === 'state') < frames.findIndex((f) => f.ev === 'system'), 'the snapshot comes first')
+
+// With insights on, the page gets them read-only, with the texts already in the pane's language
+for (let i = 0; i < 2; i++) await fire('tool.call', { tool: 'Bash', command: 'git push --force' }, async () => ({ deny: 'no' }))
+findKey(await drawPane(), 'tab-config').onPress()
+await findKey(await drawPane(), 'cfg-insights').onPress()
+assert.ok(await waitFor(async () => {
+  state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+  return state.insightsView?.findings?.length > 0
+}, 3000), 'the findings reach the page')
+const denial = state.insightsView.findings.find((f) => f.rule === 'denied-repeated')
+assert.match(denial.title, /denied 2×/)
+assert.match(denial.hint, /permissions\.deny/)
+assert.equal(denial.applied, false)
+assert.deepEqual(state.insightsView.trends, [])
+assert.equal(state.insightsView.aiHint, null)
 
 // The page: served without data, with a policy that loads nothing from elsewhere
 const page = await raw(port, { headers: { host: `127.0.0.1:${port}` } })
@@ -267,7 +328,7 @@ spawnImpl = () => (async function* () {
 const failed = await fire('command.run', { command: 'radar-web', args: '' })
 assert.match(failed.text, /Node\.js/)
 await fire('tool.call', { tool: 'Grep', pattern: 'x' }, async () => ({}))
-assert.ok(findKey(await drawPane(), 'tab-timeline'), 'the pane still draws')
+assert.ok(findKey(await drawPane(), 'tab-home'), 'the pane still draws')
 
 for (const id of timers) clearInterval(id)
 for (const c of children) if (!exited(c)) c.kill()

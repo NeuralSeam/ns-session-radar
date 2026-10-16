@@ -15,15 +15,22 @@ fixes, security changes, compatibility changes, and anything you have to do by h
   per conversation in the current folder, rewritten with the whole conversation so far, so
   `/session-radar:radar-review` always has a recent export to read. Off by default.
 - **Home tab**, where the pane now opens: the model and its effort level, context, tokens in and out
-  with the cache share, cost, and the 5-hour and weekly plan limits with when each starts over. Below,
-  one line per tab saying what it shows, with its numbers once there are some.
-- `h` explains how to read every tab, not only the API columns.
+  with the cache share, cost, the 5-hour and weekly plan limits with when each starts over, and when
+  the main session's cache expires. Below, one line per tab and one for what only the browser shows,
+  with their numbers once there are some.
+- `h` explains how to read every tab.
+- Browser view: a **Home** view with the session's cards and the **machine's memory** (in use, total,
+  and a chart of the last 10 minutes), above what was the Summary view. The memory is read by the
+  browser view's own server, every 2 seconds.
+- Browser view: an **Insights** view, read-only: the findings with their hints, what you marked as
+  applied and the comparisons since, in the pane's language.
 
 ### Changed
 
-- The tabs are now Home, Activities, Timeline, Agents, Tokens (was API), Insights and Config. Summary
-  is gone: its counts are on Home, and so is the time per tool when the pane is tall enough. **The
-  number keys moved**: Timeline is `3`, Agents `4`, Tokens `5`.
+- **The pane keeps four tabs: Home, Activities, Insights and Config**, keys `1` to `4`. Timeline,
+  Agents and Tokens (was API) moved to the browser view, which has room for them; without Node or a
+  local browser they are still in the export. The browser view's keys are `1` Home, `2` Activities,
+  `3` Insights, `4` Timeline, `5` Agents, `6` Tokens: the first three match the pane's.
 - Plan limits are named (`5h window`, `Weekly`, `Spend limit`) and say when they reset, in the pane
   and in the browser view, instead of showing their id (`five_hour`).
 - The status row is shorter: time, activities, tools and failures. The rest is on Home.
@@ -34,9 +41,13 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 - `$.fs.write` can now also run when an activity ends, only while that setting is on. The file
   holds what the export holds; keep `session-radar-*.json` out of git.
-- New mods API call: `$.config.list`, while Home is drawn, to find the effort level in the `/config`
-  rows; the session API does not report it. Only that row's value is kept. `$.session.model` now also
-  runs for Home.
+- New mods API call: `$.config.list`, while Home is drawn or the browser view runs, to find the
+  effort level in the `/config` rows; the session API does not report it. Only that row's value is
+  kept. `$.session.model` now also runs for Home.
+- The browser view's server reads the machine's total and free memory (`os.totalmem`,
+  `os.freemem`) and keeps 10 minutes of them in memory, for the page alone. No process list, no
+  command. The snapshot the page receives also carries the effort level and, with insights on, the
+  findings as text. The page still only reads.
 
 ## [0.5.1] - 2026-10-15
 

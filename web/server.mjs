@@ -11,8 +11,13 @@
 //
 // It ends on its own when the mod stops sending for IDLE_MS, so a Claude Code that went away
 // without a word leaves no process behind. No dependencies, no remote resources.
+//
+// While it runs it also samples the machine's memory, total and free, every MEM_MS and keeps the
+// last MEM_KEEP samples, for the page's memory card. Only those two numbers, from node:os: no
+// process list, no command.
 
 import http from 'node:http'
+import os from 'node:os'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +27,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const IDLE_MS = Number(process.env.RADAR_WEB_IDLE_MS) || 30_000
 const MAX_BODY = 8 * 1024 * 1024
 const KEEPALIVE_MS = 15_000
+const MEM_MS = Number(process.env.RADAR_WEB_MEM_MS) || 2000
+const MEM_KEEP = 300
 
 const STATIC = {
   '/': ['index.html', 'text/html; charset=utf-8'],
@@ -45,6 +52,7 @@ let snapshot = null
 let lastBeat = Date.now()
 let closing = false
 const clients = new Set()
+const memory = []
 
 const sameToken = (given, expected) => {
   if (typeof given !== 'string') return false
@@ -78,6 +86,16 @@ function readBody(req) {
 
 function broadcast() {
   const frame = `event: state\ndata: ${snapshot}\n\n`
+  for (const res of clients) res.write(frame)
+}
+
+const memoryFrame = (samples) => `event: system\ndata: ${JSON.stringify({ memory: samples })}\n\n`
+
+function sampleMemory() {
+  const sample = { at: Date.now(), total: os.totalmem(), free: os.freemem() }
+  memory.push(sample)
+  if (memory.length > MEM_KEEP) memory.shift()
+  const frame = memoryFrame([sample])
   for (const res of clients) res.write(frame)
 }
 
@@ -138,6 +156,8 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'text/event-stream; charset=utf-8', Connection: 'keep-alive' })
     res.write('retry: 2000\n\n')
     if (snapshot) res.write(`event: state\ndata: ${snapshot}\n\n`)
+    // The samples so far, so a page opened late still draws the last minutes
+    if (memory.length) res.write(memoryFrame(memory))
     clients.add(res)
     req.on('close', () => clients.delete(res))
     return
@@ -154,6 +174,9 @@ server.listen(0, '127.0.0.1', () => {
 setInterval(() => {
   for (const res of clients) res.write(': keepalive\n\n')
 }, KEEPALIVE_MS).unref()
+
+sampleMemory()
+setInterval(sampleMemory, MEM_MS).unref()
 
 setInterval(() => {
   if (Date.now() - lastBeat > IDLE_MS) shutdown()

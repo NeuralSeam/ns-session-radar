@@ -122,7 +122,7 @@ const flat = (n) => {
   return (n.children ?? []).map(flat).join(sep)
 }
 const findKey = (n, key) => (n?.key === key ? n : (n?.children ?? []).map((c) => findKey(c, key)).find(Boolean))
-const TAB_IDS = ['home', 'activities', 'timeline', 'agents', 'tokens', 'insights', 'config']
+const TAB_IDS = ['home', 'activities', 'insights', 'config']
 const drawPane = (cols = 96) =>
   fire('ui.render', { component: 'Pane', requestId: 'session-radar', props: { bodyColumns: cols, scroll: { bodyRows: 24 } } }, async () => null)
 
@@ -133,7 +133,7 @@ for (const id of TAB_IDS) {
     const text = flat(await drawPane(cols))
     const widest = Math.max(...text.split('\n').filter((l) => !l.includes(': ')).map((l) => [...l].length))
     assert.ok(text.length > 0, `${id} drew nothing`)
-    if (id === 'timeline' || id === 'home') assert.ok(widest <= cols - 2, `${id} at ${cols} columns is ${widest} wide`)
+    if (id === 'home') assert.ok(widest <= cols - 2, `${id} at ${cols} columns is ${widest} wide`)
     if (PRINT && cols === 96) console.log(`──── ${id}\n${text}\n`)
   }
 }
@@ -175,7 +175,7 @@ for (const id of TAB_IDS) {
 }
 await fire('command.run', { command: 'radar-lang', args: 'pt' })
 assert.equal(await lastLine(), `Session Radar · por Neural Seam · neuralseam.cloud · v${VERSION}`)
-findKey(await drawPane(), 'tab-timeline').onPress()
+findKey(await drawPane(), 'tab-home').onPress()
 assert.ok(!spin.props.suffix.includes('Neural Seam'), 'the spinner summary carries no credit')
 
 // The checks below read English text, whatever the machine's language
@@ -192,8 +192,15 @@ assert.match(home, /Weekly\s+█+░+ 18%  resets (Sun|Mon|Tue|Wed|Thu|Fri|Sat) 
 assert.ok(!home.includes('five_hour'), 'a limit is named, not shown by its id')
 assert.match(home, /Where to look/)
 assert.match(home, /2 Activities\s+1 activity · each prompt/)
-assert.match(home, /3 Timeline\s+6 calls \(1 MCP · 1 web\)/)
-assert.match(home, /6 Insights\s+.*off: turn on in 7/)
+assert.match(home, /3 Insights\s+.*off: turn on in 4/)
+assert.match(home, /4 Config\s+notifications/)
+// What only the browser shows, with how much there is
+assert.match(home, /w Browser\s+6 calls, 2 requests · timeline, agents, tokens, memory/)
+// The main session's cache, from the 1 hour TTL the request reported
+assert.match(home, /Cache\s+expires in 59m\d\ds · if it expires: ~19\.7k tok rewritten/)
+for (const gone of ['Timeline', 'Agents', 'Tokens']) {
+  assert.ok(!findKey(await drawPane(), 'tab-' + gone.toLowerCase()), `${gone} is in the browser view only`)
+}
 // The status row keeps what tells at a glance how it goes; the breakdown is on Home
 const statusRow = flat(findKey(await drawPane(), 'status'))
 assert.match(statusRow, /1 activity · 6 tools · 2 failures$/)
@@ -225,23 +232,11 @@ findKey(await drawPane(), 'turn-t1').onPress()
 assert.ok(flat(await drawPane()).includes('npm test'), 'pressing an activity opens it')
 if (PRINT) console.log(`──── activities, first opened\n${flat(await drawPane())}\n`)
 
-// API: the main loop's cache lifetime from the TTL the request reported, and the legend on h
-findKey(await drawPane(), 'tab-tokens').onPress()
-text = flat(await drawPane())
-assert.match(text, /TTL 1h/)
-assert.match(text, /expires in 59m/)
-assert.ok(!text.includes('does not report the cache TTL'), 'no fallback note once a TTL was seen')
-findKey(await drawPane(), 'help').onPress()
-text = flat(await drawPane())
-assert.match(text, /input the cache did not serve/)
-assert.match(text, /5h window\s+█+░+ 31%/)
-if (PRINT) console.log(`──── tokens, with help\n${text}\n`)
-
 // h explains every tab, above it, in lines that fit
+findKey(await drawPane(), 'help').onPress()
 const HELP_START = {
-  home: 'The session at a glance', activities: 'Each prompt you send is one activity', timeline: 'Each row is one call',
-  agents: 'The main session and the subagents', tokens: 'Every request to the model', insights: 'Fixed rules read this session',
-  config: 'Enter or a click changes a line',
+  home: 'The session at a glance', activities: 'Each prompt you send is one activity',
+  insights: 'Fixed rules read this session', config: 'Enter or a click changes a line',
 }
 for (const id of TAB_IDS) {
   findKey(await drawPane(), 'tab-' + id).onPress()
@@ -254,7 +249,7 @@ for (const id of TAB_IDS) {
 }
 findKey(await drawPane(), 'help').onPress()
 assert.ok(!flat(await drawPane()).includes(HELP_START.config), 'h again hides it')
-findKey(await drawPane(), 'tab-tokens').onPress()
+findKey(await drawPane(), 'tab-home').onPress()
 
 // Language: /radar-lang switches and remembers, the l key cycles, a bad argument explains itself
 assert.ok(commands.some((c) => c.name === 'radar-lang'))
@@ -264,7 +259,7 @@ await fire('command.run', { command: 'radar-lang', args: 'pt-BR' })
 assert.equal(storedJson('language'), 'pt')
 text = flat(await drawPane())
 assert.match(text, /Atividades/)
-assert.match(text, /Vida do cache/)
+assert.match(text, /Cache\s+expira em/)
 findKey(await drawPane(), 'tab-config').onPress()
 await findKey(await drawPane(), 'cfg-language').onPress()
 assert.equal(storedJson('language'), 'en')

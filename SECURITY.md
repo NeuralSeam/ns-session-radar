@@ -60,10 +60,10 @@ same list from the code, under `calls:`.
 | `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
 | `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |
 | `$.session.model` | Names the model on the Home tab, and beside the badge on the page while the browser view runs |
-| `$.config.list` | While the Home tab is drawn, at most every 5 seconds, to find the `/config` row that holds the effort level. The session API does not report it. Only that row's value is kept, in memory; the other rows are not read further, kept or sent |
+| `$.config.list` | While the Home tab is drawn or the browser view runs, at most every 5 seconds, to find the `/config` row that holds the effort level. The session API does not report it. Only that row's value is kept, in memory; the other rows are not read further, kept or sent |
 | `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument |
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
-| `$.session.usage` | Reads context, cost and plan limits for the Home and Tokens tabs; with insights on, also when an activity ends, to keep the highest context use |
+| `$.session.usage` | Reads context, cost and plan limits for the Home tab and the browser view; with insights on, also when an activity ends, to keep the highest context use |
 | `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
 | `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
 | `$.store.get`, `$.store.set` | Reads the language, the settings and, with insights on, the history when the session starts; writes the language when you change it, the settings when you change one, and the history when an activity or the session ends while insights are on |
@@ -93,8 +93,15 @@ so is any request carrying another site's `Origin`. The page is static, served w
 
 It keeps the last snapshot in memory and nothing on disk. The snapshot holds what
 [What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, the
-folder it runs in and its model, so the page can tell parallel sessions apart. Anyone who has the URL, on this
-machine, can read it while the server runs; treat the URL like the export file. The server stops on
+folder it runs in, its model and effort level, so the page can tell parallel sessions apart, and,
+while insights are on, the findings and comparisons as the Insights tab words them. Anyone who has
+the URL, on this machine, can read it while the server runs; treat the URL like the export file.
+
+While it runs, the server also reads the machine's total and free memory every 2 seconds, with
+Node's `os.totalmem()` and `os.freemem()`, keeps the last 10 minutes of those two numbers in memory
+and sends them only to the page. It does not list processes, read other processes' memory or run
+any command. The page itself still only reads: it sends nothing to the server but the requests for
+the data, and cannot change the mod's settings or marks. The server stops on
 `/radar-web stop`, when the mod is unloaded or Claude Code exits, and on its own after 30 seconds
 without a snapshot from the mod.
 

@@ -52,45 +52,23 @@ const CHOICES = { notifyDoneMin: [15, 30, 60, 120], notifyCacheLead: [30, 60, 12
 
 const STRINGS = {
   en: {
-    tabHome: 'Home', tabTimeline: 'Timeline', tabActivities: 'Activities', tabAgents: 'Agents', tabTokens: 'Tokens',
+    tabHome: 'Home', tabActivities: 'Activities',
     export: 'Export', clear: 'Clear', clearConfirm: 'x again to clear', help: 'Help', language: 'Language',
-    kindTool: 'Tools', kindMcp: 'MCP', kindWeb: 'Web', kindAgent: 'Subagents', kindApi: 'Model API',
-    running: 'running', denied: 'denied', failedLegend: 'red = failed or denied',
-    windowStart: 'window start', now: 'now',
-    emptyTimeline: 'Nothing recorded yet. Send a prompt and each step Claude takes shows up here.',
+    running: 'running', denied: 'denied',
     emptyActivities: 'No activity yet. Each prompt you send becomes one activity here, with every tool it called.',
     activitiesHint: 'Tab or ↑↓ to move, Enter to open or close an activity',
     continuation: '(no prompt: Claude continued on its own)',
     noTools: 'No tools called in this activity.',
     earlier: (n) => `… ${n} earlier calls of this activity are no longer in memory`,
     more: (n) => `… ${n} more above`,
-    mainSession: 'Main session', main: 'main', subagent: 'subagent',
-    done: 'done', interrupted: 'interrupted',
-    tool: 'tool', tools: 'tools', req: 'req.', inTok: 'in', outTok: 'out', recent: 'recent',
+    tool: 'tool', tools: 'tools', req: 'req.', inTok: 'in', outTok: 'out',
     activity: 'activity', activities: 'activities',
-    noSubagents: 'No subagents in this session yet. They appear here as soon as Claude delegates a task.',
-    context: 'Context', of: 'of', cost: 'Cost',
-    cache: 'Cache', cacheNote: 'of input read from cache', outPerReq: 'Out/req',
-    noRequests: 'No requests to the model yet.',
-    colModel: 'model', colAgent: 'agent', colFresh: 'new', colPrompt: 'prompt', colOut: 'out', colTime: 'time',
-    legend: [
-      'new      input the cache did not serve: billed at the full input price',
-      'cache↓   input read from the prompt cache: far cheaper than new input',
-      'cache↑   input written to the cache: costs more once, then is read cheaply',
-      'prompt   new + cache↓ + cache↑: the whole request; grows with the conversation',
-      'hit%     cache↓ ÷ prompt. A yellow row probably lost the cache:',
-      '         it expired, the model changed, or the start of the prompt changed',
-    ],
-    cacheLife: 'Cache lifetime',
-    ago: (d) => `last used ${d} ago`,
+    context: 'Context', of: 'of', cache: 'Cache',
     expiresIn: (d) => `expires in ${d}`,
     expired: (d) => `expired ${d} ago`,
-    expiredShort: 'expired',
     ifTtl: (a, b) => `${a} left if TTL 5m, ${b} if 1h`,
     recache: (n) => `if it expires: ~${n} tok rewritten`,
-    ttlUnknown: 'This Claude Code build does not report the cache TTL, so both are shown.',
-    ttlNote: 'Each request that reads the cache restarts its lifetime.',
-    timeByTool: 'Time by tool', fail: 'failure', fails: 'failures',
+    fail: 'failure', fails: 'failures',
     spinTools: 'tools', spinReq: 'req.', spinAgent: 'agent', spinAgents: 'agents',
     cmdRadar: 'Open or close the session radar pane (tools, agents, model requests)',
     cmdExport: 'Write everything the radar recorded to a JSON file',
@@ -119,25 +97,18 @@ const STRINGS = {
     whereToLook: 'Where to look',
     guide: {
       activities: (n) => (n ? `${plural(n, 'activity', 'activities')} · ` : '') + 'each prompt and the tools it called',
-      timeline: (calls, mcp, web) => (calls ? `${plural(calls, 'call', 'calls')} (${mcp} MCP · ${web} web) · ` : '') +
-        'what ran, when, for how long',
-      agents: (n) => (n ? `${plural(n, 'subagent', 'subagents')} · ` : '') + 'the tasks Claude delegated',
-      tokens: (n) => (n ? `${plural(n, 'model request', 'model requests')} · ` : '') + 'tokens, cache and when it expires',
       insights: (on, n) => (on ? `${plural(n, 'suggestion', 'suggestions')} for this project's setup`
-        : "suggestions for this project's setup · off: turn on in 7"),
+        : "suggestions for this project's setup · off: turn on in 4"),
       config: 'notifications, insights, auto export, badge, language',
+      web: (calls, api) => (calls || api ? `${plural(calls, 'call', 'calls')}, ${plural(api, 'request', 'requests')} · ` : '') +
+        'timeline, agents, tokens, memory',
     },
     helpText: {
-      home: 'The session at a glance: model, context, tokens and plan limits, straight from Claude Code. ' +
-        'Below, what each tab shows. Switch tabs with 1 to 7; h hides this help.',
+      home: 'The session at a glance: model, context, tokens, plan limits and the cache, straight from Claude ' +
+        'Code. Below, what each tab shows; w opens the browser view for the timeline, agents, tokens and ' +
+        'memory. Switch tabs with 1 to 4; h hides this help.',
       activities: 'Each prompt you send is one activity. Open one with Enter to see every tool it called, in ' +
         "order, its subagents' included, with when it started and how long it took.",
-      timeline: 'Each row is one call, drawn where it started and as wide as it took, oldest on the left. ' +
-        '▓ is still running; red failed or was denied; indented rows belong to a subagent.',
-      agents: 'The main session and the subagents it started, as a tree: status, duration, tools, model ' +
-        'requests and tokens, and the last three things each one did.',
-      tokens: 'Every request to the model and where its input came from. Input read from the cache is far ' +
-        'cheaper than new input; the cache expires when nothing reads it for its TTL.',
       insights: "Fixed rules read this session and the project's history and suggest setup changes. Once " +
         'you apply one, press mark applied: the tab compares the sessions before and after.',
       config: 'Enter or a click changes a line. Everything that notifies or keeps data starts off.',
@@ -162,7 +133,7 @@ const STRINGS = {
     cfgHistoryCleared: 'History deleted.',
     cfgNotifyNote: 'Notifications use your Claude Code notification channel and never include a prompt.',
     cfgInsightsNote: 'History keeps counts per project between sessions: no prompts, no arguments.',
-    insightsOff: 'Insights are off. Turn them on in Config (7): they read this session and keep per-project counts.',
+    insightsOff: 'Insights are off. Turn them on in Config (4): they read this session and keep per-project counts.',
     noFindings: 'Nothing to suggest for this session yet.',
     historyLine: (n) => `History: ${plural(n, 'earlier session', 'earlier sessions')} of this project`,
     markApplied: 'mark applied', markedApplied: 'applied ✓',
@@ -224,45 +195,23 @@ const STRINGS = {
     },
   },
   pt: {
-    tabHome: 'Início', tabTimeline: 'Tempo', tabActivities: 'Atividades', tabAgents: 'Agentes', tabTokens: 'Tokens',
+    tabHome: 'Início', tabActivities: 'Atividades',
     export: 'Exportar', clear: 'Limpar', clearConfirm: 'x de novo para limpar', help: 'Ajuda', language: 'Idioma',
-    kindTool: 'Ferramentas', kindMcp: 'MCP', kindWeb: 'Web', kindAgent: 'Subagentes', kindApi: 'API do modelo',
-    running: 'rodando', denied: 'negado', failedLegend: 'vermelho = erro ou negado',
-    windowStart: 'início da janela', now: 'agora',
-    emptyTimeline: 'Nada registrado ainda. Envie um prompt e cada passo do Claude aparece aqui.',
+    running: 'rodando', denied: 'negado',
     emptyActivities: 'Nenhuma atividade ainda. Cada prompt que você envia vira uma atividade aqui, com todas as ferramentas que ela chamou.',
     activitiesHint: 'Tab ou ↑↓ para navegar, Enter abre ou fecha uma atividade',
     continuation: '(sem prompt: o Claude continuou sozinho)',
     noTools: 'Nenhuma ferramenta chamada nesta atividade.',
     earlier: (n) => `… ${n} chamadas anteriores desta atividade já saíram da memória`,
     more: (n) => `… mais ${n} acima`,
-    mainSession: 'Sessão principal', main: 'principal', subagent: 'subagente',
-    done: 'concluído', interrupted: 'interrompido',
-    tool: 'ferramenta', tools: 'ferramentas', req: 'req.', inTok: 'entrada', outTok: 'saída', recent: 'últimas',
+    tool: 'ferramenta', tools: 'ferramentas', req: 'req.', inTok: 'entrada', outTok: 'saída',
     activity: 'atividade', activities: 'atividades',
-    noSubagents: 'Nenhum subagente nesta sessão ainda. Eles aparecem aqui assim que o Claude delegar uma tarefa.',
-    context: 'Contexto', of: 'de', cost: 'Custo',
-    cache: 'Cache', cacheNote: 'da entrada lida do cache', outPerReq: 'Saída/req',
-    noRequests: 'Nenhuma requisição ao modelo ainda.',
-    colModel: 'modelo', colAgent: 'agente', colFresh: 'novo', colPrompt: 'prompt', colOut: 'saída', colTime: 'tempo',
-    legend: [
-      'novo     entrada que o cache não serviu: cobrada pelo preço cheio',
-      'cache↓   entrada lida do cache: bem mais barata que entrada nova',
-      'cache↑   entrada gravada no cache: custa mais uma vez, depois é lida barato',
-      'prompt   novo + cache↓ + cache↑: a requisição inteira; cresce com a conversa',
-      'hit%     cache↓ ÷ prompt. Linha amarela provavelmente perdeu o cache:',
-      '         expirou, o modelo mudou ou o início do prompt mudou',
-    ],
-    cacheLife: 'Vida do cache',
-    ago: (d) => `último uso há ${d}`,
+    context: 'Contexto', of: 'de', cache: 'Cache',
     expiresIn: (d) => `expira em ${d}`,
     expired: (d) => `expirou há ${d}`,
-    expiredShort: 'expirado',
     ifTtl: (a, b) => `restam ${a} se TTL 5m, ${b} se 1h`,
     recache: (n) => `se expirar: ~${n} tok regravados`,
-    ttlUnknown: 'Esta versão do Claude Code não informa a TTL do cache, então as duas aparecem.',
-    ttlNote: 'Cada requisição que lê o cache reinicia a contagem.',
-    timeByTool: 'Tempo por ferramenta', fail: 'falha', fails: 'falhas',
+    fail: 'falha', fails: 'falhas',
     spinTools: 'ferr.', spinReq: 'req.', spinAgent: 'agente', spinAgents: 'agentes',
     cmdRadar: 'Abre ou fecha o painel do radar (ferramentas, agentes, requisições ao modelo)',
     cmdExport: 'Grava tudo o que o radar registrou num arquivo JSON',
@@ -291,25 +240,18 @@ const STRINGS = {
     whereToLook: 'Onde olhar',
     guide: {
       activities: (n) => (n ? `${plural(n, 'atividade', 'atividades')} · ` : '') + 'cada prompt e as ferramentas que ele chamou',
-      timeline: (calls, mcp, web) => (calls ? `${plural(calls, 'chamada', 'chamadas')} (${mcp} MCP · ${web} web) · ` : '') +
-        'o que rodou, quando e quanto durou',
-      agents: (n) => (n ? `${plural(n, 'subagente', 'subagentes')} · ` : '') + 'as tarefas que o Claude delegou',
-      tokens: (n) => (n ? `${n} req. ao modelo · ` : '') + 'tokens, cache e quando ele expira',
       insights: (on, n) => (on ? `${plural(n, 'sugestão', 'sugestões')} para a configuração do projeto`
-        : 'sugestões para a configuração do projeto · desligado: ligue em 7'),
+        : 'sugestões para a configuração do projeto · desligado: ligue em 4'),
       config: 'avisos, insights, export automático, crachá, idioma',
+      web: (calls, api) => (calls || api ? `${plural(calls, 'chamada', 'chamadas')}, ${api} req. · ` : '') +
+        'linha do tempo, agentes, tokens, memória',
     },
     helpText: {
-      home: 'A sessão num relance: modelo, contexto, tokens e limites do plano, direto do Claude Code. ' +
-        'Abaixo, o que cada aba mostra. Troque de aba com 1 a 7; h esconde esta ajuda.',
+      home: 'A sessão num relance: modelo, contexto, tokens, limites do plano e o cache, direto do Claude ' +
+        'Code. Abaixo, o que cada aba mostra; w abre o navegador com a linha do tempo, os agentes, os tokens ' +
+        'e a memória. Troque de aba com 1 a 4; h esconde esta ajuda.',
       activities: 'Cada prompt que você envia é uma atividade. Abra uma com Enter para ver, em ordem, cada ' +
         'ferramenta que ela chamou, inclusive as dos subagentes, com quando começou e quanto levou.',
-      timeline: 'Cada linha é uma chamada, desenhada onde começou e tão larga quanto durou, a mais antiga à ' +
-        'esquerda. ▓ ainda está rodando; vermelho falhou ou foi negada; linhas recuadas são de um subagente.',
-      agents: 'A sessão principal e os subagentes que ela criou, em árvore: status, duração, ferramentas, ' +
-        'requisições ao modelo e tokens, e as três últimas coisas que cada um fez.',
-      tokens: 'Cada requisição ao modelo e de onde veio a entrada. Entrada lida do cache é bem mais barata ' +
-        'que entrada nova; o cache expira quando nada o lê durante a TTL.',
       insights: 'Regras fixas leem esta sessão e o histórico do projeto e sugerem mudanças na configuração. ' +
         'Depois de aplicar uma, marque como aplicada: a aba compara as sessões antes e depois.',
       config: 'Enter ou um clique muda uma linha. Tudo o que notifica ou guarda dados começa desligado.',
@@ -334,7 +276,7 @@ const STRINGS = {
     cfgHistoryCleared: 'Histórico apagado.',
     cfgNotifyNote: 'As notificações usam o canal de notificação do Claude Code e nunca trazem um prompt.',
     cfgInsightsNote: 'O histórico guarda contagens por projeto entre sessões: sem prompts, sem argumentos.',
-    insightsOff: 'Os insights estão desligados. Ligue em Config (7): eles leem esta sessão e guardam contagens por projeto.',
+    insightsOff: 'Os insights estão desligados. Ligue em Config (4): eles leem esta sessão e guardam contagens por projeto.',
     noFindings: 'Nada a sugerir para esta sessão por enquanto.',
     historyLine: (n) => `Histórico: ${plural(n, 'sessão anterior', 'sessões anteriores')} deste projeto`,
     markApplied: 'marcar aplicado', markedApplied: 'aplicado ✓',
@@ -454,21 +396,20 @@ async function saveConfig($, patch) {
 }
 
 const KIND = {
-  tool: { icon: '⚙', color: 'cyan', nameKey: 'kindTool' },
-  mcp: { icon: '⇄', color: 'magenta', nameKey: 'kindMcp' },
-  web: { icon: '◎', color: 'blue', nameKey: 'kindWeb' },
-  agent: { icon: '◆', color: 'yellow', nameKey: 'kindAgent' },
-  api: { icon: '✦', color: 'green', nameKey: 'kindApi' },
+  tool: { icon: '⚙', color: 'cyan' },
+  mcp: { icon: '⇄', color: 'magenta' },
+  web: { icon: '◎', color: 'blue' },
+  agent: { icon: '◆', color: 'yellow' },
+  api: { icon: '✦', color: 'green' },
 }
 
+// What is looked at in a glance or acted on stays here; the timeline, the agents and the tokens,
+// which need room to read, are in the browser view, whose first three views match these
 const TABS = [
   ['home', 'tabHome', '1'],
   ['activities', 'tabActivities', '2'],
-  ['timeline', 'tabTimeline', '3'],
-  ['agents', 'tabAgents', '4'],
-  ['tokens', 'tabTokens', '5'],
-  ['insights', 'tabInsights', '6'],
-  ['config', 'tabConfig', '7'],
+  ['insights', 'tabInsights', '3'],
+  ['config', 'tabConfig', '4'],
 ]
 
 // ---------------------------------------------------------------------------
@@ -599,8 +540,6 @@ const redraw = ($) => {
   $.ui.invalidate('ui.render')
 }
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
-const kindName = (k) => L[KIND[k].nameKey]
-const agentName = (id) => (id === 'main' ? L.main : S.agents.get(id)?.label ?? id)
 
 function classify(tool) {
   if (tool === 'Agent' || tool === 'Task') return 'agent'
@@ -638,12 +577,6 @@ function bar(frac, w) {
   const f = Math.max(0, Math.min(1, frac || 0))
   const full = Math.round(f * w)
   return '█'.repeat(full) + '░'.repeat(w - full)
-}
-
-function sparkline(values) {
-  const ticks = '▁▂▃▄▅▆▇█'
-  const max = Math.max(1, ...values)
-  return values.map((v) => ticks[Math.min(7, Math.floor((v / max) * 7))]).join('')
 }
 
 function depthOf(id) {
@@ -902,6 +835,26 @@ function usageSnapshot(u) {
   })
 }
 
+// The Insights tab as the page shows it, read-only, with the texts already in the pane's language,
+// so the rules' wording lives in one place. Marking a change as applied stays in the pane.
+function insightsView() {
+  if (!cfg.insights) return null
+  const marked = new Set(appliedMarks().map((m) => m.rule))
+  return {
+    history: pastSessions().length,
+    findings: findings().map((f) => {
+      const [title, hint] = L.ins[f.rule](f.data)
+      return { rule: f.rule, severity: f.severity, title, hint, applied: marked.has(f.rule) }
+    }),
+    trends: compareApplied(projectSessions(), appliedMarks()).map((t) => ({
+      rule: t.rule,
+      text: L.trendLine(L.ruleName[t.rule], fmtMetric(t.before, t.unit) ?? '—', fmtMetric(t.after, t.unit), t.nBefore, t.nAfter),
+      better: t.after != null && t.before != null && t.after < t.before,
+    })),
+    aiHint: cfg.aiHint ? L.aiHint : null,
+  }
+}
+
 async function pushWeb($) {
   const w = web
   if (!w?.base || w.pushing) return
@@ -921,13 +874,15 @@ async function pushWeb($) {
     } catch {
       // The model is not available here
     }
+    const effort = await readEffort($)
     const body = JSON.stringify({
       ...snapshot(),
       now: Date.now(),
       lang: L === STRINGS.pt ? 'pt' : 'en',
       ttlSeen: S.ttlSeen,
       usage,
-      session: { ...badge, cwd, model },
+      session: clean({ ...badge, cwd, model, effort }),
+      insightsView: insightsView(),
       version: VERSION,
     })
     const res = await $.http.fetch(`${w.base}/api/ingest`, {
@@ -1095,56 +1050,6 @@ function meterRow(ui, key, label, pct, note) {
 const contextPct = (c) => (c ? (c.percent ?? ((c.tokens ?? 0) / (c.window || 1)) * 100) || 0 : null)
 const usageCost = (u) => (typeof u?.cost === 'number' ? u.cost : u?.cost?.usd ?? u?.cost?.total)
 
-function timelineBody(ui, width, maxRows) {
-  const { Box, Text } = ui
-  const spans = S.spans.slice(-Math.max(4, maxRows))
-  if (!spans.length) return [T(Text, L.emptyTimeline, { dimColor: true })]
-
-  const now = Date.now()
-  const t0 = Math.min(...spans.map((s) => s.start))
-  const total = Math.max(1, now - t0)
-  const nameW = 16
-  const durW = 8
-  const labelW = width >= 70 ? Math.floor(width * 0.26) : 0
-  const barW = Math.max(8, width - nameW - labelW - durW - (labelW ? 2 : 1))
-
-  const rows = spans.map((s) => {
-    const a = Math.min(barW - 1, Math.floor(((s.start - t0) / total) * barW))
-    const b = Math.min(barW, Math.max(a + 1, Math.ceil((((s.end ?? now) - t0) / total) * barW)))
-    const depth = depthOf(s.agent)
-    const indent = depth ? ' '.repeat(depth * 2 - 1) + '↳' : ''
-    const k = KIND[s.kind]
-    const failed = s.status === 'error' || s.status === 'denied'
-    const color = failed ? 'red' : k.color
-    const label = s.kind === 'api' ? agentName(s.agent) : s.label || ''
-    const children = [T(Text, pad(`${indent}${k.icon} ${s.name}`, nameW), { color })]
-    children.push(T(Text, labelW ? ' ' + pad(label, labelW) + ' ' : ' ', { dimColor: true }))
-    children.push(T(Text, '·'.repeat(a), { dimColor: true }))
-    children.push(T(Text, (s.end ? '█' : '▓').repeat(b - a), { color }))
-    children.push(T(Text, '·'.repeat(barW - b), { dimColor: true }))
-    const dur = s.status === 'denied' ? L.denied : fmtDur((s.end ?? now) - s.start)
-    const durStyle = !s.end ? { color: 'yellow', bold: true } : failed ? { color: 'red' } : {}
-    children.push(T(Text, (' ' + dur).padStart(durW), durStyle))
-    return Box({ key: 's' + s.id, flexDirection: 'row', children })
-  })
-
-  const lead = nameW + (labelW ? labelW + 2 : 1)
-  const right = `${L.now} ${('+' + fmtDur(total)).padStart(durW)}`
-  const axis = T(Text, ' '.repeat(lead) + pad(L.windowStart, Math.max(0, barW + durW - right.length)) + right, { dimColor: true })
-
-  const kinds = Object.keys(KIND).map((k) => T(Text, `${KIND[k].icon} ${kindName(k)}`, { color: KIND[k].color }))
-  const states = [T(Text, `▓ ${L.running}`, { color: 'yellow' }), T(Text, L.failedLegend, { color: 'red' })]
-  // One legend row on a wide pane, two on a narrow one
-  const legend = width >= 100
-    ? [Box({ key: 'legend', flexDirection: 'row', columnGap: 2, children: [...kinds, ...states] })]
-    : [
-        Box({ key: 'legend-kinds', flexDirection: 'row', columnGap: 2, children: kinds }),
-        Box({ key: 'legend-states', flexDirection: 'row', columnGap: 2, children: states }),
-      ]
-
-  return [...rows, axis, T(Text, ' '), ...legend]
-}
-
 function turnMark(t) {
   if (!t.end) return { mark: '●', color: 'yellow' }
   if (t.reason === 'aborted') return { mark: '✗', color: 'red' }
@@ -1226,157 +1131,8 @@ function activitiesBody(ui, $, width, maxRows) {
   return out
 }
 
-function agentsBody(ui, width) {
-  const { Box, Text } = ui
-  const out = []
-  const all = [...S.agents.values()]
-
-  const walk = (a, depth) => {
-    const prefix = depth ? '  '.repeat(depth - 1) + '↳ ' : ''
-    const isMain = a.id === 'main'
-    const running = !a.end && !isMain
-    const failText = a.status === 'interrupted' ? L.interrupted : a.status === 'denied' ? L.denied : a.status
-    const status = isMain ? '' : running ? `● ${L.running}` : a.status === 'ok' ? `✓ ${L.done}` : `✗ ${failText}`
-    const statusColor = running ? 'yellow' : a.status === 'ok' ? 'green' : 'red'
-    const title = isMain ? L.mainSession : `${a.type ? a.type + ': ' : ''}${a.label}`
-
-    out.push(Box({
-      key: 'a-' + a.id,
-      flexDirection: 'row',
-      columnGap: 2,
-      children: [
-        T(Text, trunc(`${prefix}◆ ${title}`, Math.floor(width * 0.6)), isMain ? { bold: true } : { color: 'yellow' }),
-        ...(status ? [T(Text, status, { color: statusColor })] : []),
-      ],
-    }))
-    const ind = ' '.repeat(prefix.length + 2)
-    const line = `${ind}${fmtDur((a.end ?? Date.now()) - a.start)} · ${a.calls} ${L.tools} · ${a.api} ${L.req} · ` +
-      `${fmtTok(a.tokIn)} ${L.inTok} / ${fmtTok(a.tokOut)} ${L.outTok}`
-    out.push(T(Text, trunc(line, width), { dimColor: true }))
-    if (a.recent.length) out.push(T(Text, trunc(`${ind}${L.recent}: ${a.recent.join(' → ')}`, width), { dimColor: true }))
-
-    all.filter((x) => x.parent === a.id).forEach((kid) => walk(kid, depth + 1))
-  }
-
-  walk(S.agents.get('main'), 0)
-  if (all.length === 1) out.push(T(Text, ' '), T(Text, L.noSubagents, { dimColor: true }))
-  return out
-}
-
-// How long each loop's cache entries live. The API restarts an entry's lifetime on every read, so
-// the clock runs from the loop's last request that read or wrote the cache.
-function cacheLifeLines(ui, width) {
-  const { Text } = ui
-  const now = Date.now()
-  const loops = [...S.agents.values()]
-    .filter((a) => a.cacheAt)
-    .sort((a, b) => (a.id === 'main' ? -1 : b.id === 'main' ? 1 : b.cacheAt - a.cacheAt))
-    .slice(0, 2)
-  if (!loops.length) return []
-
-  const out = [T(Text, ' '), T(Text, `${L.cacheLife} · ${L.ttlNote}`, { bold: true })]
-  const left = (ms) => (ms > 0 ? fmtDur(ms) : L.expiredShort)
-  for (const a of loops) {
-    const since = now - a.cacheAt
-    const parts = [pad(agentName(a.id), 12)]
-    let color
-    if (a.ttl) {
-      // A mixed write expires in two steps; the 5 minute part, the end of the conversation, goes first
-      const remaining = cacheRemaining(a, now)
-      parts.push(`TTL ${a.ttl === 'mixed' ? '5m+1h' : a.ttl}`, L.ago(fmtDur(since)),
-        remaining > 0 ? L.expiresIn(fmtDur(remaining)) : L.expired(fmtDur(-remaining)))
-      color = remaining <= 0 ? 'red' : remaining < 60_000 ? 'yellow' : 'green'
-    } else {
-      parts.push(L.ago(fmtDur(since)), L.ifTtl(left(TTL_MS['5m'] - since), left(TTL_MS['1h'] - since)))
-    }
-    out.push(T(Text, trunc(parts.join(' · '), width), color ? { color } : { dimColor: true }))
-    out.push(T(Text, trunc(' '.repeat(15) + L.recache(fmtTok(a.cachePrompt)), width), { dimColor: true }))
-  }
-  if (!S.ttlSeen) out.push(T(Text, trunc(L.ttlUnknown, width), { dimColor: true }))
-  return out
-}
-
-async function apiBody(ui, $, width, maxRows) {
-  const { Box, Text } = ui
-  const out = []
-  const t = S.totals
-
-  // Context, cost and plan limits, straight from the session
-  try {
-    const u = await $.session.usage()
-    if (u?.context) {
-      const pct = contextPct(u.context)
-      S.maxCtxPct = Math.max(S.maxCtxPct, pct)
-      out.push(meterRow(ui, 'ctx', L.context, pct, `${fmtTok(u.context.tokens ?? 0)} ${L.of} ${fmtTok(u.context.window ?? 0)}`))
-    }
-    const cost = usageCost(u)
-    if (typeof cost === 'number') out.push(T(Text, `${pad(L.cost, 12)}US$ ${cost.toFixed(2)}`, { dimColor: true }))
-    for (const r of u?.rateLimits ?? []) {
-      out.push(meterRow(ui, 'lim-' + r.kind, limitName(r.kind), r.percentUsed ?? 0, r.resetsAt ? resetText(r.resetsAt) : ''))
-    }
-  } catch {
-    // usage() is not available here; carry on with what the radar collected
-  }
-
-  const inputSide = t.tokIn || 1
-  out.push(Box({
-    key: 'cache',
-    flexDirection: 'row',
-    children: [
-      T(Text, pad(L.cache, 12)),
-      T(Text, bar(t.cacheRead / inputSide, 24), { color: 'green' }),
-      T(Text, ` ${Math.round((t.cacheRead / inputSide) * 100)}% ${L.cacheNote}`, { dimColor: true }),
-    ],
-  }))
-  out.push(...cacheLifeLines(ui, width))
-
-  const apiSpans = S.spans.filter((s) => s.kind === 'api')
-  if (!apiSpans.length) {
-    out.push(T(Text, ' '), T(Text, L.noRequests, { dimColor: true }))
-    return out
-  }
-
-  const spark = apiSpans.slice(-Math.max(10, width - 12)).map((s) => s.meta.tout ?? 0)
-  out.push(T(Text, ' '))
-  out.push(Box({
-    key: 'spark',
-    flexDirection: 'row',
-    children: [T(Text, pad(L.outPerReq, 12)), T(Text, sparkline(spark), { color: 'green' })],
-  }))
-  if (showHelp) {
-    out.push(T(Text, ' '))
-    for (const line of L.legend) out.push(T(Text, trunc(line, width), { dimColor: true }))
-  }
-  out.push(T(Text, ' '))
-  out.push(T(Text, pad(L.colModel, 14) + pad(L.colAgent, 12) + L.colFresh.padStart(7) + 'cache↓'.padStart(8) +
-    'cache↑'.padStart(8) + L.colPrompt.padStart(8) + 'hit%'.padStart(6) + L.colOut.padStart(7) + L.colTime.padStart(8),
-  { dimColor: true }))
-
-  for (const s of apiSpans.slice(-Math.max(3, maxRows - out.length - 1))) {
-    const m = s.meta
-    const running = !s.end
-    const prompt = (m.tin ?? 0) + (m.cr ?? 0) + (m.cw ?? 0)
-    const hit = prompt ? Math.round(((m.cr ?? 0) / prompt) * 100) : 0
-    // A request after the loop's first that sent most of a large prompt uncached lost the cache
-    const miss = !running && !m.first && prompt > 2000 && hit < 50
-    const cell = (v, w) => (running ? '…' : v).padStart(w)
-    out.push(T(Text,
-      pad('✦ ' + s.name, 14) +
-      pad(agentName(s.agent), 12) +
-      cell(fmtTok(m.tin ?? 0), 7) +
-      cell(fmtTok(m.cr ?? 0), 8) +
-      cell(fmtTok(m.cw ?? 0), 8) +
-      cell(fmtTok(prompt), 8) +
-      cell(hit + '%', 6) +
-      cell(fmtTok(m.tout ?? 0), 7) +
-      fmtDur((s.end ?? Date.now()) - s.start).padStart(8),
-      running ? { color: 'yellow' } : s.status === 'error' ? { color: 'red' } : miss ? { color: 'yellow' } : {}))
-  }
-  return out
-}
-
-// The session at a glance, then what each tab answers, its numbers included; with rows to spare,
-// the session's title on top and the tools the time went to below
+// The session at a glance, then what each tab answers, its numbers included, and what only the
+// browser shows; with rows to spare, the session's title on top
 async function homeBody(ui, $, width, maxRows) {
   const { Box, Text } = ui
   const t = S.totals
@@ -1412,15 +1168,25 @@ async function homeBody(ui, $, width, maxRows) {
     info.push(meterRow(ui, 'h-lim-' + r.kind, limitName(r.kind), r.percentUsed ?? 0, r.resetsAt ? resetText(r.resetsAt) : ''))
   }
   if (!limits.length) info.push(T(Text, trunc(L.noLimits, width), { dimColor: true }))
+  // The main session's cache, the one number here that asks for action before it runs out
+  const main = S.agents.get('main')
+  if (main?.cacheAt) {
+    const since = Date.now() - main.cacheAt
+    const left = cacheRemaining(main)
+    const text = main.ttl
+      ? (left > 0 ? L.expiresIn(fmtDur(left)) : L.expired(fmtDur(-left)))
+      : L.ifTtl(fmtDur(Math.max(0, TTL_MS['5m'] - since)), fmtDur(Math.max(0, TTL_MS['1h'] - since)))
+    const color = !main.ttl ? undefined : left <= 0 ? 'red' : left < 60_000 ? 'yellow' : 'green'
+    info.push(row('h-cache', L.cache, `${text} · ${L.recache(fmtTok(main.cachePrompt))}`, color ? { color } : { dimColor: true }))
+  }
 
+  // The tabs here, then the views only the browser has
   const g = L.guide
   const guide = [
     ['2', L.tabActivities, g.activities(S.turns.length)],
-    ['3', L.tabTimeline, g.timeline(t.calls, t.mcp, t.web)],
-    ['4', L.tabAgents, g.agents(t.agents)],
-    ['5', L.tabTokens, g.tokens(t.api)],
-    ['6', L.tabInsights, g.insights(cfg.insights, cfg.insights ? findings().length : 0)],
-    ['7', L.tabConfig, g.config],
+    ['3', L.tabInsights, g.insights(cfg.insights, cfg.insights ? findings().length : 0)],
+    ['4', L.tabConfig, g.config],
+    ['w', L.web, g.web(t.calls, t.api)],
   ].map(([key, name, text]) => Box({
     key: 'guide-' + key,
     flexDirection: 'row',
@@ -1440,41 +1206,6 @@ async function homeBody(ui, $, width, maxRows) {
     spare -= 2
   }
   out.push(...info, T(Text, ' '), T(Text, L.whereToLook, { bold: true }), ...shown)
-  if (spare >= 4) out.push(...timeByTool(ui, width, spare))
-  return out
-}
-
-// The tools the time went to, with their failures, in at most maxRows rows
-function timeByTool(ui, width, maxRows) {
-  const { Box, Text } = ui
-  const out = []
-  const agg = new Map()
-  for (const s of S.spans) {
-    if (s.kind === 'api' || !s.end) continue
-    const cur = agg.get(s.name) ?? { n: 0, ms: 0, fail: 0 }
-    cur.n++
-    cur.ms += s.end - s.start
-    if (s.status !== 'ok') cur.fail++
-    agg.set(s.name, cur)
-  }
-  const top = [...agg.entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, Math.min(8, maxRows - 2))
-  if (top.length) {
-    out.push(T(Text, ' '), T(Text, L.timeByTool, { bold: true }))
-    const maxMs = Math.max(1, ...top.map(([, v]) => v.ms))
-    const barW = Math.max(8, Math.min(30, width - 40))
-    for (const [name, v] of top) {
-      out.push(Box({
-        key: 'top-' + name,
-        flexDirection: 'row',
-        children: [
-          T(Text, pad(name, 17) + ' '),
-          T(Text, bar(v.ms / maxMs, barW), { color: 'cyan' }),
-          T(Text, ` ${v.n}x · ${fmtDur(v.ms)}`, { dimColor: true }),
-          ...(v.fail ? [T(Text, ` · ${plural(v.fail, L.fail, L.fails)}`, { color: 'red' })] : []),
-        ],
-      }))
-    }
-  }
   return out
 }
 
@@ -1926,10 +1657,7 @@ export function register(on) {
     // Two rows fewer for the body, so the credit footer stays on screen
     const room = Math.max(4, Math.max(6, bodyRows - 9) - help.length)
     let body
-    if (tab === 'timeline') body = timelineBody(ui, width, room - 3)
-    else if (tab === 'activities') body = activitiesBody(ui, $, width, room)
-    else if (tab === 'agents') body = agentsBody(ui, width)
-    else if (tab === 'tokens') body = await apiBody(ui, $, width, room)
+    if (tab === 'activities') body = activitiesBody(ui, $, width, room)
     else if (tab === 'insights') body = insightsBody(ui, $, width, room)
     else if (tab === 'config') body = configBody(ui, $, width)
     else body = await homeBody(ui, $, width, room)
