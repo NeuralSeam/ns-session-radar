@@ -20,6 +20,10 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 - Browser view: **the radar's notifications on the page.** Each one shows as a toast, and, once you
   press *Turn on browser notifications* in the footer and allow it, as your system's notification
   while the tab is in the background. Opening the page does not replay earlier ones.
+- Browser view: **a place for one ad**, below the navigation (a strip above the footer on a narrow
+  window), marked as an ad. The first is Neural Seam's own, for Neural Seam Premium. Ads are
+  embedded in the page: nothing is loaded to show one and nothing reports that it was shown; the
+  page's content policy is unchanged.
 
 ### Changed
 

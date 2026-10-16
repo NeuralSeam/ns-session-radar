@@ -28,6 +28,10 @@ The exceptions:
 
 Nothing else is written, and nothing is uploaded.
 
+The browser view shows one ad, Neural Seam's own. It is embedded in the page: showing it loads
+nothing and reports nothing. Only if you click it does your browser open neuralseam.cloud, in a new
+tab, without a referrer.
+
 The AI review (`/session-radar:radar-review`) is a skill that Claude runs in your session, when you
 call it: what it reads goes to the model like anything else in that session. The mod itself never
 calls a model.

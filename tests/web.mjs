@@ -303,11 +303,16 @@ assert.equal(page.status, 200)
 assert.match(page.headers['content-security-policy'], /default-src 'none'/)
 assert.match(page.headers['content-security-policy'], /script-src 'self'/)
 assert.ok(!/https?:\/\//.test(page.text.replace(/http:\/\/www\.w3\.org/g, '')), 'no remote URL in the page')
+// The ad is embedded: its one remote URL is where its link goes, which loads nothing
+const AD_HREF = "href: 'https://neuralseam.cloud/premium'"
+assert.match(page.text, /<aside class="promo" id="promo"><\/aside>/, 'the page keeps a place for the ad')
 for (const file of ['/app.js', '/app.css']) {
   const r = await raw(port, { path: file, headers: { host: `localhost:${port}` } })
   assert.equal(r.status, 200, file)
-  assert.ok(!/https?:\/\/(?!www\.w3\.org)/.test(r.text), `no remote URL in ${file}`)
+  if (file === '/app.js') assert.ok(r.text.includes(AD_HREF), 'the house ad links to Neural Seam Premium')
+  assert.ok(!/https?:\/\/(?!www\.w3\.org)/.test(r.text.replace(AD_HREF, '')), `no other remote URL in ${file}`)
 }
+assert.match(page.headers['content-security-policy'], /connect-src 'self'; img-src 'self' data:/, 'the policy did not widen for the ad')
 
 // The guards
 const H = { host: `127.0.0.1:${port}` }

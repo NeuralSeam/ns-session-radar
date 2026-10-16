@@ -265,6 +265,10 @@ small server, `web/server.mjs` (Node, no dependencies), and your default browser
 reply and the pane beside the transcript also show the address as a link, for when no browser can
 be opened.
 
+Below the navigation the page shows one ad, marked as such: today Neural Seam's own, for Neural
+Seam Premium. It is part of the page, like the rest: nothing is loaded to show it and nobody is told
+it was shown; only clicking it opens neuralseam.cloud in a new tab.
+
 The page has six views, described under [In the browser](#in-the-browser): Home with the
 machine's memory, Activities and Insights as in the pane, and Timeline, Agents and Tokens, which
 only the browser shows. Config stays in the pane, and so does marking a finding as applied: the page

@@ -104,7 +104,10 @@ do sistema.
   como notificação do sistema, depois de você clicar em *Ativar notificações do navegador* no
   rodapé e permitir.
 
-No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel.
+No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel. Abaixo da
+navegação fica um anúncio, marcado como tal: hoje o do próprio Neural Seam, para o Neural Seam
+Premium. Ele faz parte da página como o resto: nada é carregado para mostrá-lo e ninguém é avisado de
+que foi mostrado; só clicar nele abre neuralseam.cloud numa aba nova.
 
 - **Início:** os cards da sessão e a **memória da máquina**: quanto está em uso, de quanto, e um
   gráfico dos últimos 10 minutos. Abaixo, chamadas por tipo, duração de cada atividade e tempo por

@@ -83,6 +83,7 @@
       notifyOn: 'Turn on browser notifications',
       notifyOnTip: 'The radar’s notifications, from your system, while this tab is in the background. Turn them on in /radar-config first.',
       noticeClose: 'Click to close',
+      adTag: 'Ad', adLabel: 'Advertisement',
     },
     pt: {
       views: { home: 'Início', activities: 'Atividades', insights: 'Insights', timeline: 'Tempo', agents: 'Agentes', tokens: 'Tokens' },
@@ -158,6 +159,7 @@
       notifyOn: 'Ativar notificações do navegador',
       notifyOnTip: 'As notificações do radar, pelo sistema, enquanto esta aba está em segundo plano. Ligue-as antes em /radar-config.',
       noticeClose: 'Clique para fechar',
+      adTag: 'Anúncio', adLabel: 'Anúncio',
     },
   }
 
@@ -169,6 +171,14 @@
   const WINDOW_MS = { '15m': 15 * 60_000, '5m': 5 * 60_000, '1m': 60_000 }
   const STALE_MS = 15_000
   const NOTICE_MS = 8000
+  // Ads, embedded in the page: nothing is loaded to show one, and nobody is told it was shown. The
+  // first is the house ad; others join the list in a release
+  const ADS = [{
+    id: 'premium',
+    href: 'https://neuralseam.cloud/premium',
+    en: { title: 'Neural Seam Premium', body: 'Take your Claude Code projects further, from plan to delivery.', cta: 'See Premium →' },
+    pt: { title: 'Neural Seam Premium', body: 'Leve seus projetos com o Claude Code mais longe, do plano à entrega.', cta: 'Conheça o Premium →' },
+  }]
   const NOTICES_SHOWN = 4
   const CHART_MAX = 120
 
@@ -1249,6 +1259,7 @@
     $('credit').textContent = version ? `${T.credit} · v${version}` : T.credit
     $('hint').textContent = T.hint
     renderNotifyOn()
+    renderPromo()
     renderHeader()
     renderNav()
     renderToolbar()
@@ -1299,6 +1310,22 @@
   // ---------------------------------------------------------------------------
   // Connection: server-sent events from the local server, with the view token
   // ---------------------------------------------------------------------------
+
+  // Drawn again only when the language changes, so a redraw never takes it from under the pointer
+  let promoLang = null
+  function renderPromo() {
+    const lang = T === I18N.pt ? 'pt' : 'en'
+    if (promoLang === lang) return
+    promoLang = lang
+    const ad = ADS[0]
+    const text = ad[lang]
+    $('promo').setAttribute('aria-label', T.adLabel)
+    $('promo').replaceChildren(h('a', { class: 'promo-card', href: ad.href, target: '_blank', rel: 'noopener noreferrer', 'data-ad': ad.id },
+      h('span', { class: 'promo-tag' }, T.adTag),
+      h('strong', { class: 'promo-title' }, text.title),
+      h('span', { class: 'promo-body' }, text.body),
+      h('span', { class: 'promo-cta' }, text.cta)))
+  }
 
   // ---------------------------------------------------------------------------
   // Notifications the mod raised, numbers only, as it sent them to the terminal: a toast on the page

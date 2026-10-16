@@ -76,8 +76,8 @@ button { -webkit-tap-highlight-color: transparent; }
 .app {
   display: grid;
   grid-template-columns: var(--nav-w) minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr) var(--foot-h);
-  grid-template-areas: "top top top" "nav main detail" "foot foot foot";
+  grid-template-rows: auto minmax(0, 1fr) auto var(--foot-h);
+  grid-template-areas: "top top top" "nav main detail" "promo main detail" "foot foot foot";
   height: 100vh;
   height: 100dvh;
 }
@@ -190,6 +190,25 @@ button { -webkit-tap-highlight-color: transparent; }
 .nav button[aria-current="page"] .count { color: var(--accent-text); }
 .nav kbd { font-family: var(--mono); font-size: 10px; color: var(--text-3); width: 10px; }
 .nav-label { display: flex; gap: 10px; align-items: baseline; }
+
+/* The ad: at the foot of the navigation, a card that is one link */
+.promo { grid-area: promo; padding: 10px; border-right: 1px solid var(--line); background: var(--surface); }
+.promo-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, var(--accent-soft), transparent 70%), var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  text-decoration: none;
+}
+.promo-card:hover { border-color: var(--accent-line); }
+.promo-card:hover .promo-cta { color: var(--text); }
+.promo-tag { justify-self: start; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 3px; color: var(--text-3); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+.promo-title { color: var(--text); font-size: 13px; font-weight: 600; }
+.promo-cta { margin-top: 4px; color: var(--accent-text); font-weight: 600; }
 
 .main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -649,9 +668,14 @@ table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
   :root { --gutter: 16px; }
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) var(--foot-h);
-    grid-template-areas: "top" "nav" "main" "foot";
+    grid-template-rows: auto auto minmax(0, 1fr) auto var(--foot-h);
+    grid-template-areas: "top" "nav" "main" "promo" "foot";
   }
+  /* A strip above the footer: the tag, the title and the call on one row */
+  .promo { padding: 6px var(--gutter); border-right: 0; border-top: 1px solid var(--line); }
+  .promo-card { display: flex; align-items: center; gap: 10px; padding: 6px 10px; white-space: nowrap; overflow: hidden; }
+  .promo-body { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .promo-cta { margin: 0 0 0 auto; }
   .top { flex-wrap: wrap; row-gap: 0; padding-top: 10px; }
   .metrics { flex: 1 0 100%; margin: 6px calc(var(--gutter) * -1) 0; padding: 6px var(--gutter) 8px; border-top: 1px solid var(--line); }
   .metrics div:first-child { padding-left: 0; }
@@ -714,5 +738,6 @@ table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .kv { grid-template-columns: 112px minmax(0, 1fr); }
   .grid td, .grid th { padding: 0 6px; }
   .hide-sm { display: none; }
+  .promo-body { display: none; }
   table.grid.fit-sm { min-width: 0 !important; }
 }
