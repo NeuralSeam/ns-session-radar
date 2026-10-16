@@ -43,13 +43,20 @@ Para testar sem instalar: clone este repositório e rode `claude --plugin-dir ./
 | `/radar-config` | Abre o painel na aba Config |
 | `/session-radar:radar-review` | A análise com IA de um export. Usa tokens |
 
-No painel: `1` a `7` trocam de aba (Tempo, Atividades, Agentes, API, Resumo, Insights, Config), `w`
-abre no navegador, `l` troca o idioma, `e` exporta, `x` limpa, `Esc` fecha. Em `auto` (o padrão) a
+No painel: `1` a `7` trocam de aba (Início, Atividades, Tempo, Agentes, Tokens, Insights, Config),
+`h` explica como ler a aba, `w` abre no navegador, `e` exporta, `x` limpa (aperte duas vezes em até
+3 segundos), `Esc` fecha. O idioma fica em Config e em `/radar-lang`; em `auto` (o padrão) a
 interface segue o idioma do sistema.
+
+- **Início:** a aba que abre primeiro. Mostra o modelo e o nível de esforço, quanto do contexto está
+  ocupado, os tokens de entrada e saída com a parte que veio do cache, o custo e quanto das janelas
+  de 5 horas e semanal do plano já foi usado, com quando cada uma renova. Abaixo, uma linha por aba
+  com o que ela mostra e, quando já há algo, quanto. O esforço vem da linha do `/config` que o
+  guarda; se a sua versão não tiver essa linha, aparece só o modelo.
 
 - **Atividades:** uma linha por prompt enviado. Tab ou as setas navegam e Enter abre a atividade,
   que lista cada ferramenta chamada, em ordem, inclusive as dos subagentes.
-- **API:** `h` explica as colunas. `novo` são os tokens de entrada que o cache não serviu, cobrados
+- **Tokens:** `h` explica as colunas. `novo` são os tokens de entrada que o cache não serviu, cobrados
   pelo preço cheio. `cache↓` é o que foi lido do cache e `cache↑` o que foi gravado nele. `prompt`
   é a requisição inteira e `hit%` a parte que veio do cache. Linha amarela indica provável perda de
   cache. Em **Vida do cache** aparecem a TTL, quanto tempo falta para expirar e quanto a próxima

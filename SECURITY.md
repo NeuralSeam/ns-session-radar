@@ -14,7 +14,8 @@ Every hook below receives the event as Claude Code raises it, so the mod sees:
   commands and file paths;
 - the token counts of every request to the model;
 - when turns and subagents start and end, and the text each turn starts with;
-- context use, cost and plan limits from `$.session.usage()`.
+- context use, cost and plan limits from `$.session.usage()`;
+- the session's model, and the effort level when `/config` lists it.
 
 Of the prompts you type it keeps only the start, to name each activity (below). It does **not**
 read Claude's replies, tool results, environment variables or settings. The one file it reads is the
@@ -58,10 +59,11 @@ same list from the code, under `calls:`.
 | `$.ui.toast` | Says where an export went, and that the history was deleted |
 | `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
 | `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |
-| `$.session.model` | While the browser view runs, to name the model beside the badge on the page |
+| `$.session.model` | Names the model on the Home tab, and beside the badge on the page while the browser view runs |
+| `$.config.list` | While the Home tab is drawn, at most every 5 seconds, to find the `/config` row that holds the effort level. The session API does not report it. Only that row's value is kept, in memory; the other rows are not read further, kept or sent |
 | `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument |
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
-| `$.session.usage` | Reads context, cost and plan limits for the API tab; with insights on, also when an activity ends, to keep the highest context use |
+| `$.session.usage` | Reads context, cost and plan limits for the Home and Tokens tabs; with insights on, also when an activity ends, to keep the highest context use |
 | `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
 | `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
 | `$.store.get`, `$.store.set` | Reads the language, the settings and, with insights on, the history when the session starts; writes the language when you change it, the settings when you change one, and the history when an activity or the session ends while insights are on |

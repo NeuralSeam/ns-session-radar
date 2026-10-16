@@ -40,6 +40,7 @@
       },
       context: 'Context', of: 'of', cost: 'Cost', cache: 'Cache', cacheNote: 'of input read from cache',
       cacheSplit: (r, w) => `${r} read · ${w} written`, limit: 'Limit', resets: 'resets',
+      limitName: { five_hour: '5h window', seven_day: 'Weekly', spend_limit: 'Spend limit' },
       cacheLife: 'Cache lifetime', ttlNote: 'Each request that reads the cache restarts its lifetime.',
       ago: (d) => `last used ${d} ago`, expiresIn: (d) => `expires in ${d}`, expired: (d) => `expired ${d} ago`,
       ifTtl: (a, b) => `${a} left if TTL 5m, ${b} if 1h`, expiredShort: 'expired',
@@ -100,6 +101,7 @@
       },
       context: 'Contexto', of: 'de', cost: 'Custo', cache: 'Cache', cacheNote: 'da entrada lida do cache',
       cacheSplit: (r, w) => `${r} lidos · ${w} gravados`, limit: 'Limite', resets: 'renova',
+      limitName: { five_hour: 'Janela 5h', seven_day: 'Semanal', spend_limit: 'Limite de gasto' },
       cacheLife: 'Vida do cache', ttlNote: 'Cada requisição que lê o cache reinicia a contagem.',
       ago: (d) => `último uso há ${d}`, expiresIn: (d) => `expira em ${d}`, expired: (d) => `expirou há ${d}`,
       ifTtl: (a, b) => `restam ${a} se TTL 5m, ${b} se 1h`, expiredShort: 'expirado',
@@ -613,7 +615,7 @@
     for (const r of u?.rateLimits ?? []) {
       const p = r.percentUsed ?? 0
       stats.push(h('div', { class: 'stat' },
-        h('div', { class: 'stat-label' }, `${T.limit} ${r.kind}`),
+        h('div', { class: 'stat-label' }, T.limitName[r.kind] ?? `${T.limit} ${r.kind}`),
         h('div', { class: 'stat-value' }, `${Math.round(p)}%`),
         h('div', { class: 'meter' }, meter(p / 100, p > 80 ? 'fail' : p > 60 ? 'warn' : '')),
         r.resetsAt ? h('div', { class: 'stat-sub' }, `${T.resets} ${new Date(r.resetsAt).toLocaleString()}`) : null))

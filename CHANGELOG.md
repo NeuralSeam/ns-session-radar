@@ -14,11 +14,29 @@ fixes, security changes, compatibility changes, and anything you have to do by h
   radar writes the same JSON as `/radar-export`, without a toast: one `session-radar-<start>.json`
   per conversation in the current folder, rewritten with the whole conversation so far, so
   `/session-radar:radar-review` always has a recent export to read. Off by default.
+- **Home tab**, where the pane now opens: the model and its effort level, context, tokens in and out
+  with the cache share, cost, and the 5-hour and weekly plan limits with when each starts over. Below,
+  one line per tab saying what it shows, with its numbers once there are some.
+- `h` explains how to read every tab, not only the API columns.
+
+### Changed
+
+- The tabs are now Home, Activities, Timeline, Agents, Tokens (was API), Insights and Config. Summary
+  is gone: its counts are on Home, and so is the time per tool when the pane is tall enough. **The
+  number keys moved**: Timeline is `3`, Agents `4`, Tokens `5`.
+- Plan limits are named (`5h window`, `Weekly`, `Spend limit`) and say when they reset, in the pane
+  and in the browser view, instead of showing their id (`five_hour`).
+- The status row is shorter: time, activities, tools and failures. The rest is on Home.
+- `x` asks before it clears: press it again within 3 seconds.
+- The language left the action row (`l`); it stays in Config and `/radar-lang`.
 
 ### Privacy and security
 
 - `$.fs.write` can now also run when an activity ends, only while that setting is on. The file
   holds what the export holds; keep `session-radar-*.json` out of git.
+- New mods API call: `$.config.list`, while Home is drawn, to find the effort level in the `/config`
+  rows; the session API does not report it. Only that row's value is kept. `$.session.model` now also
+  runs for Home.
 
 ## [0.5.1] - 2026-10-15
 

@@ -26,18 +26,27 @@ Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 
 ## What it shows
 
-**1 · Timeline.** A Gantt-style view: each row is one thing Claude did, placed where it started and
-as wide as it took. A subagent's own calls sit indented under the call that started it. Yellow `▓`
-is still running; red failed or was denied.
+The pane opens on **Home**. Press `h` on any tab for a few lines on how to read it.
+
+**1 · Home.** The session at a glance: the model and its effort level, how full the context is,
+the tokens in and out with the share served from the cache, the cost, and how much of the 5-hour and
+weekly plan limits is used, with when each starts over. Below, one line per tab with what it shows
+and, once there is something, how much: activities, calls, subagents, model requests, suggestions.
 
 ```
-✦ sonnet-5-5     main                     █·······································    2.1s
-⚙ Bash           npm test                 ··█████████████·························   11.4s
-◆ Agent          map the auth module      ·················███████████████████████   38.0s
- ↳⚙ Grep         login                    ··················█·····················    0.3s
- ↳⇄ github·sear… auth bug                 ····················████················    4.9s
-◎ WebFetch       https://example.com/docs ·······································▓  running
+Model       opus-5-5 · effort high
+Context     ██████████░░░░░░░░░░░░░░ 42%  84.0k of 200.0k
+Tokens      1.2M in (88% from cache) · 41.0k out · US$ 3.10
+5h window   ███████░░░░░░░░░░░░░░░░░ 31%  resets at 15:40
+Weekly      ████░░░░░░░░░░░░░░░░░░░░ 18%  resets Mon 09:00
+
+Where to look
+2 Activities  6 activities · each prompt and the tools it called
+3 Timeline    38 calls (3 MCP · 2 web) · what ran, when, for how long
 ```
+
+The effort level comes from the `/config` row that holds it; when your build lists none, the line
+shows the model alone. Accounts without plan limits (an API key) see a line saying so.
 
 **2 · Activities.** One line per prompt you sent: its first 120 characters, how long it took, how
 many tools it called and how many failed. The newest is open; Tab or the arrows move between them
@@ -54,12 +63,25 @@ started (counted from the prompt), its argument, how long it took and whether it
      +13.9s  ↳⚙ Grep           login                                              0.3s
 ```
 
-**3 · Agents.** The tree of the main session and its subagents: status, duration, tool calls,
+**3 · Timeline.** A Gantt-style view: each row is one thing Claude did, placed where it started and
+as wide as it took. A subagent's own calls sit indented under the call that started it. Yellow `▓`
+is still running; red failed or was denied.
+
+```
+✦ sonnet-5-5     main                     █·······································    2.1s
+⚙ Bash           npm test                 ··█████████████·························   11.4s
+◆ Agent          map the auth module      ·················███████████████████████   38.0s
+ ↳⚙ Grep         login                    ··················█·····················    0.3s
+ ↳⇄ github·sear… auth bug                 ····················████················    4.9s
+◎ WebFetch       https://example.com/docs ·······································▓  running
+```
+
+**4 · Agents.** The tree of the main session and its subagents: status, duration, tool calls,
 model requests, tokens in and out, and the last three things each one did.
 
-**4 · API.** How full the context is, cost, plan limits, how much input came from the prompt cache,
-how long the cache has left, a sparkline of output tokens per request, and a table of every request.
-Press `h` in this tab for the meaning of each column:
+**5 · Tokens.** How full the context is, cost, plan limits, how much input came from the prompt
+cache, how long the cache has left, a sparkline of output tokens per request, and a table of every
+request. Press `h` in this tab for the meaning of each column:
 
 | Column | What it is |
 | --- | --- |
@@ -75,9 +97,6 @@ if it expires. The API restarts an entry's lifetime every time a request reads i
 runs from the last request. The TTL comes from the request itself, which says how much it wrote for
 5 minutes and how much for 1 hour. When your Claude Code build does not pass that on to mods, the
 radar shows the time left under both.
-
-**5 · Summary.** How much of each kind of activity there was, and which tools the time went to,
-with their failures.
 
 **6 · Insights.** Off until you turn it on in Config. Fixed rules read what the radar recorded and
 suggest changes to how Claude Code is set up, most severe first, each with the numbers behind it:
@@ -169,13 +188,12 @@ Inside the pane:
 
 | Key | What it does |
 | --- | --- |
-| `1` to `7` | Switch tab: Timeline, Activities, Agents, API, Summary, Insights, Config |
+| `1` to `7` | Switch tab: Home, Activities, Timeline, Agents, Tokens, Insights, Config |
 | Tab, `↑` `↓`, Enter | In Activities, move between activities and open one |
-| `h` | In API, show or hide what each column means |
-| `l` | Cycle the language: auto, Portuguese, English |
+| `h` | Show or hide how to read the tab; in Tokens, also what each column means |
 | `w` | Open the browser view, same as `/radar-web` |
 | `e` | Export, same as `/radar-export` |
-| `x` | Clear what has been recorded |
+| `x` | Clear what has been recorded: press it twice within 3 seconds |
 | `Esc` | Close the pane |
 
 The radar starts over on `/clear`, `/resume` and `/branch`, because those start a different

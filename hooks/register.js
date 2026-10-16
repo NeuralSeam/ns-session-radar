@@ -10,8 +10,8 @@
 //   ◆ subagents (the Agent/Task tool plus the agent.spawn event)
 //   ✦ requests to the model (turn.step), with tokens and cache
 //
-// Shown in a pane with seven tabs (/radar), as a live summary beside the spinner, and, on request
-// (/radar-web), as a page in the browser served from this machine's loopback by web/server.mjs.
+// Shown in a pane with seven tabs, opening on Home (/radar), as a live summary beside the spinner,
+// and, on request (/radar-web), as a page in the browser served from this machine's loopback by web/server.mjs.
 // Nothing leaves the machine: no remote network, no model calls. The only writes are /radar-export,
 // the same file saved after each activity when the person turns that on, and, in the mod's own
 // store, the language, the settings and, when insights are on, per-project counts. Notifications,
@@ -32,6 +32,8 @@ const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
 const WEB_START_MS = 10_000
 const AI_REVIEW = '/session-radar:radar-review'
+const EFFORT_MS = 5000
+const CLEAR_CONFIRM_MS = 3000
 
 // Settings, kept in the store under `config`. Everything that notifies or keeps more data starts off.
 const DEFAULTS = { notifyDone: false, notifyDoneMin: 30, notifyCache: false, notifyCacheLead: 60, insights: false, aiHint: false, autoExport: false, badge: false }
@@ -50,8 +52,8 @@ const CHOICES = { notifyDoneMin: [15, 30, 60, 120], notifyCacheLead: [30, 60, 12
 
 const STRINGS = {
   en: {
-    tabTimeline: 'Timeline', tabActivities: 'Activities', tabAgents: 'Agents', tabApi: 'API', tabSummary: 'Summary',
-    export: 'Export', clear: 'Clear', help: 'Help', language: 'Language',
+    tabHome: 'Home', tabTimeline: 'Timeline', tabActivities: 'Activities', tabAgents: 'Agents', tabTokens: 'Tokens',
+    export: 'Export', clear: 'Clear', clearConfirm: 'x again to clear', help: 'Help', language: 'Language',
     kindTool: 'Tools', kindMcp: 'MCP', kindWeb: 'Web', kindAgent: 'Subagents', kindApi: 'Model API',
     running: 'running', denied: 'denied', failedLegend: 'red = failed or denied',
     windowStart: 'window start', now: 'now',
@@ -64,9 +66,10 @@ const STRINGS = {
     more: (n) => `… ${n} more above`,
     mainSession: 'Main session', main: 'main', subagent: 'subagent',
     done: 'done', interrupted: 'interrupted',
-    tools: 'tools', req: 'req.', inTok: 'in', outTok: 'out', recent: 'recent',
+    tool: 'tool', tools: 'tools', req: 'req.', inTok: 'in', outTok: 'out', recent: 'recent',
+    activity: 'activity', activities: 'activities',
     noSubagents: 'No subagents in this session yet. They appear here as soon as Claude delegates a task.',
-    context: 'Context', of: 'of', cost: 'Cost', limit: 'Limit',
+    context: 'Context', of: 'of', cost: 'Cost',
     cache: 'Cache', cacheNote: 'of input read from cache', outPerReq: 'Out/req',
     noRequests: 'No requests to the model yet.',
     colModel: 'model', colAgent: 'agent', colFresh: 'new', colPrompt: 'prompt', colOut: 'out', colTime: 'time',
@@ -78,7 +81,6 @@ const STRINGS = {
       'hit%     cache↓ ÷ prompt. A yellow row probably lost the cache:',
       '         it expired, the model changed, or the start of the prompt changed',
     ],
-    helpHint: 'h: what the columns mean',
     cacheLife: 'Cache lifetime',
     ago: (d) => `last used ${d} ago`,
     expiresIn: (d) => `expires in ${d}`,
@@ -88,9 +90,7 @@ const STRINGS = {
     recache: (n) => `if it expires: ~${n} tok rewritten`,
     ttlUnknown: 'This Claude Code build does not report the cache TTL, so both are shown.',
     ttlNote: 'Each request that reads the cache restarts its lifetime.',
-    turn: 'turn', turns: 'turns', avg: 'avg', inputTokens: 'input tokens', outputTokens: 'output',
     timeByTool: 'Time by tool', fail: 'failure', fails: 'failures',
-    statusTools: 'tools', statusMcp: 'MCP', statusWeb: 'web', statusAgents: 'subagents', statusApi: 'model requests',
     spinTools: 'tools', spinReq: 'req.', spinAgent: 'agent', spinAgents: 'agents',
     cmdRadar: 'Open or close the session radar pane (tools, agents, model requests)',
     cmdExport: 'Write everything the radar recorded to a JSON file',
@@ -108,6 +108,40 @@ const STRINGS = {
     webFailed: 'Could not start the radar web view. It needs Node.js 20 or later on the PATH (`node`).',
     webUsage: 'Use /radar-web to open it or /radar-web stop to end it.',
     tabInsights: 'Insights', tabConfig: 'Config',
+    homeTitle: 'Session Radar · what Claude Code is doing in this session',
+    homeModel: 'Model', homeEffort: 'effort', homeTokens: 'Tokens',
+    homeTokensLine: (inp, hit, out) => `${inp} in (${hit}% from cache) · ${out} out`,
+    noLimits: 'Plan limits: not reported for this account',
+    limitName: { five_hour: '5h window', seven_day: 'Weekly', spend_limit: 'Spend limit' },
+    resetsAt: (t) => `resets at ${t}`,
+    resetsOn: (d, t) => `resets ${d} ${t}`,
+    weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    whereToLook: 'Where to look',
+    guide: {
+      activities: (n) => (n ? `${plural(n, 'activity', 'activities')} · ` : '') + 'each prompt and the tools it called',
+      timeline: (calls, mcp, web) => (calls ? `${plural(calls, 'call', 'calls')} (${mcp} MCP · ${web} web) · ` : '') +
+        'what ran, when, for how long',
+      agents: (n) => (n ? `${plural(n, 'subagent', 'subagents')} · ` : '') + 'the tasks Claude delegated',
+      tokens: (n) => (n ? `${plural(n, 'model request', 'model requests')} · ` : '') + 'tokens, cache and when it expires',
+      insights: (on, n) => (on ? `${plural(n, 'suggestion', 'suggestions')} for this project's setup`
+        : "suggestions for this project's setup · off: turn on in 7"),
+      config: 'notifications, insights, auto export, badge, language',
+    },
+    helpText: {
+      home: 'The session at a glance: model, context, tokens and plan limits, straight from Claude Code. ' +
+        'Below, what each tab shows. Switch tabs with 1 to 7; h hides this help.',
+      activities: 'Each prompt you send is one activity. Open one with Enter to see every tool it called, in ' +
+        "order, its subagents' included, with when it started and how long it took.",
+      timeline: 'Each row is one call, drawn where it started and as wide as it took, oldest on the left. ' +
+        '▓ is still running; red failed or was denied; indented rows belong to a subagent.',
+      agents: 'The main session and the subagents it started, as a tree: status, duration, tools, model ' +
+        'requests and tokens, and the last three things each one did.',
+      tokens: 'Every request to the model and where its input came from. Input read from the cache is far ' +
+        'cheaper than new input; the cache expires when nothing reads it for its TTL.',
+      insights: "Fixed rules read this session and the project's history and suggest setup changes. Once " +
+        'you apply one, press mark applied: the tab compares the sessions before and after.',
+      config: 'Enter or a click changes a line. Everything that notifies or keeps data starts off.',
+    },
     cmdConfig: 'Open the radar settings: notifications, insights, language',
     notifyDone: (n, dur, calls, fails, until) => `#${n} done · ${dur} · ${calls} tools` +
       (fails ? ` · ${plural(fails, 'failure', 'failures')}` : '') + (until ? ` · cache until ${until}` : ''),
@@ -190,8 +224,8 @@ const STRINGS = {
     },
   },
   pt: {
-    tabTimeline: 'Tempo', tabActivities: 'Atividades', tabAgents: 'Agentes', tabApi: 'API', tabSummary: 'Resumo',
-    export: 'Exportar', clear: 'Limpar', help: 'Ajuda', language: 'Idioma',
+    tabHome: 'Início', tabTimeline: 'Tempo', tabActivities: 'Atividades', tabAgents: 'Agentes', tabTokens: 'Tokens',
+    export: 'Exportar', clear: 'Limpar', clearConfirm: 'x de novo para limpar', help: 'Ajuda', language: 'Idioma',
     kindTool: 'Ferramentas', kindMcp: 'MCP', kindWeb: 'Web', kindAgent: 'Subagentes', kindApi: 'API do modelo',
     running: 'rodando', denied: 'negado', failedLegend: 'vermelho = erro ou negado',
     windowStart: 'início da janela', now: 'agora',
@@ -204,9 +238,10 @@ const STRINGS = {
     more: (n) => `… mais ${n} acima`,
     mainSession: 'Sessão principal', main: 'principal', subagent: 'subagente',
     done: 'concluído', interrupted: 'interrompido',
-    tools: 'ferramentas', req: 'req.', inTok: 'entrada', outTok: 'saída', recent: 'últimas',
+    tool: 'ferramenta', tools: 'ferramentas', req: 'req.', inTok: 'entrada', outTok: 'saída', recent: 'últimas',
+    activity: 'atividade', activities: 'atividades',
     noSubagents: 'Nenhum subagente nesta sessão ainda. Eles aparecem aqui assim que o Claude delegar uma tarefa.',
-    context: 'Contexto', of: 'de', cost: 'Custo', limit: 'Limite',
+    context: 'Contexto', of: 'de', cost: 'Custo',
     cache: 'Cache', cacheNote: 'da entrada lida do cache', outPerReq: 'Saída/req',
     noRequests: 'Nenhuma requisição ao modelo ainda.',
     colModel: 'modelo', colAgent: 'agente', colFresh: 'novo', colPrompt: 'prompt', colOut: 'saída', colTime: 'tempo',
@@ -218,7 +253,6 @@ const STRINGS = {
       'hit%     cache↓ ÷ prompt. Linha amarela provavelmente perdeu o cache:',
       '         expirou, o modelo mudou ou o início do prompt mudou',
     ],
-    helpHint: 'h: o que significa cada coluna',
     cacheLife: 'Vida do cache',
     ago: (d) => `último uso há ${d}`,
     expiresIn: (d) => `expira em ${d}`,
@@ -228,9 +262,7 @@ const STRINGS = {
     recache: (n) => `se expirar: ~${n} tok regravados`,
     ttlUnknown: 'Esta versão do Claude Code não informa a TTL do cache, então as duas aparecem.',
     ttlNote: 'Cada requisição que lê o cache reinicia a contagem.',
-    turn: 'turno', turns: 'turnos', avg: 'média', inputTokens: 'tokens de entrada', outputTokens: 'de saída',
     timeByTool: 'Tempo por ferramenta', fail: 'falha', fails: 'falhas',
-    statusTools: 'ferramentas', statusMcp: 'MCP', statusWeb: 'web', statusAgents: 'subagentes', statusApi: 'req. ao modelo',
     spinTools: 'ferr.', spinReq: 'req.', spinAgent: 'agente', spinAgents: 'agentes',
     cmdRadar: 'Abre ou fecha o painel do radar (ferramentas, agentes, requisições ao modelo)',
     cmdExport: 'Grava tudo o que o radar registrou num arquivo JSON',
@@ -248,6 +280,40 @@ const STRINGS = {
     webFailed: 'Não foi possível iniciar o radar no navegador. Ele precisa do Node.js 20 ou mais novo no PATH (`node`).',
     webUsage: 'Use /radar-web para abrir ou /radar-web stop para encerrar.',
     tabInsights: 'Insights', tabConfig: 'Config',
+    homeTitle: 'Session Radar · o que o Claude Code está fazendo nesta sessão',
+    homeModel: 'Modelo', homeEffort: 'esforço', homeTokens: 'Tokens',
+    homeTokensLine: (inp, hit, out) => `${inp} entrada (${hit}% do cache) · ${out} saída`,
+    noLimits: 'Limites do plano: não informados nesta conta',
+    limitName: { five_hour: 'Janela 5h', seven_day: 'Semanal', spend_limit: 'Limite de gasto' },
+    resetsAt: (t) => `renova às ${t}`,
+    resetsOn: (d, t) => `renova ${d} ${t}`,
+    weekdays: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'],
+    whereToLook: 'Onde olhar',
+    guide: {
+      activities: (n) => (n ? `${plural(n, 'atividade', 'atividades')} · ` : '') + 'cada prompt e as ferramentas que ele chamou',
+      timeline: (calls, mcp, web) => (calls ? `${plural(calls, 'chamada', 'chamadas')} (${mcp} MCP · ${web} web) · ` : '') +
+        'o que rodou, quando e quanto durou',
+      agents: (n) => (n ? `${plural(n, 'subagente', 'subagentes')} · ` : '') + 'as tarefas que o Claude delegou',
+      tokens: (n) => (n ? `${n} req. ao modelo · ` : '') + 'tokens, cache e quando ele expira',
+      insights: (on, n) => (on ? `${plural(n, 'sugestão', 'sugestões')} para a configuração do projeto`
+        : 'sugestões para a configuração do projeto · desligado: ligue em 7'),
+      config: 'avisos, insights, export automático, crachá, idioma',
+    },
+    helpText: {
+      home: 'A sessão num relance: modelo, contexto, tokens e limites do plano, direto do Claude Code. ' +
+        'Abaixo, o que cada aba mostra. Troque de aba com 1 a 7; h esconde esta ajuda.',
+      activities: 'Cada prompt que você envia é uma atividade. Abra uma com Enter para ver, em ordem, cada ' +
+        'ferramenta que ela chamou, inclusive as dos subagentes, com quando começou e quanto levou.',
+      timeline: 'Cada linha é uma chamada, desenhada onde começou e tão larga quanto durou, a mais antiga à ' +
+        'esquerda. ▓ ainda está rodando; vermelho falhou ou foi negada; linhas recuadas são de um subagente.',
+      agents: 'A sessão principal e os subagentes que ela criou, em árvore: status, duração, ferramentas, ' +
+        'requisições ao modelo e tokens, e as três últimas coisas que cada um fez.',
+      tokens: 'Cada requisição ao modelo e de onde veio a entrada. Entrada lida do cache é bem mais barata ' +
+        'que entrada nova; o cache expira quando nada o lê durante a TTL.',
+      insights: 'Regras fixas leem esta sessão e o histórico do projeto e sugerem mudanças na configuração. ' +
+        'Depois de aplicar uma, marque como aplicada: a aba compara as sessões antes e depois.',
+      config: 'Enter ou um clique muda uma linha. Tudo o que notifica ou guarda dados começa desligado.',
+    },
     cmdConfig: 'Abre as configurações do radar: notificações, insights, idioma',
     notifyDone: (n, dur, calls, fails, until) => `#${n} concluída · ${dur} · ${calls} ferramentas` +
       (fails ? ` · ${plural(fails, 'falha', 'falhas')}` : '') + (until ? ` · cache até ${until}` : ''),
@@ -396,11 +462,11 @@ const KIND = {
 }
 
 const TABS = [
-  ['timeline', 'tabTimeline', '1'],
+  ['home', 'tabHome', '1'],
   ['activities', 'tabActivities', '2'],
-  ['agents', 'tabAgents', '3'],
-  ['api', 'tabApi', '4'],
-  ['summary', 'tabSummary', '5'],
+  ['timeline', 'tabTimeline', '3'],
+  ['agents', 'tabAgents', '4'],
+  ['tokens', 'tabTokens', '5'],
   ['insights', 'tabInsights', '6'],
   ['config', 'tabConfig', '7'],
 ]
@@ -410,9 +476,11 @@ const TABS = [
 // ---------------------------------------------------------------------------
 
 let S = fresh()
-let tab = 'timeline'
+let tab = 'home'
 let paneOpen = false
 let showHelp = false
+// When x was pressed once: a second press within CLEAR_CONFIRM_MS clears
+let clearArmedAt = 0
 // null follows the newest activity; 'none' keeps every activity closed
 let openTurn = null
 let seq = 0
@@ -758,11 +826,27 @@ async function clearHistory($) {
   $.ui.toast(L.cfgHistoryCleared)
 }
 
+// The effort level, from the /config row that names it, when this build lists one; the session API
+// does not report it. Only that row's value is kept, read at most every EFFORT_MS while Home is drawn.
+let effortRead = { at: 0, value: null }
+
+async function readEffort($) {
+  if (Date.now() - effortRead.at < EFFORT_MS) return effortRead.value
+  let value = null
+  try {
+    const row = (await $.config.list())?.find?.((r) => /effort/i.test(`${r?.key ?? ''} ${r?.label ?? ''}`))
+    if (row && (typeof row.value === 'string' || typeof row.value === 'number')) value = trunc(String(row.value), 12)
+  } catch {
+    // No /config rows here: Home leaves the effort out
+  }
+  effortRead = { at: Date.now(), value }
+  return value
+}
+
 async function trackUsage($) {
   try {
     const u = await $.session.usage()
-    const pct = u?.context ? (u.context.percent ?? (u.context.tokens / u.context.window) * 100) || 0 : 0
-    S.maxCtxPct = Math.max(S.maxCtxPct, pct)
+    S.maxCtxPct = Math.max(S.maxCtxPct, contextPct(u?.context) ?? 0)
   } catch {
     // usage() is not available here
   }
@@ -810,7 +894,7 @@ function markWebDirty() {
 
 function usageSnapshot(u) {
   if (!u) return null
-  const cost = typeof u.cost === 'number' ? u.cost : u.cost?.usd ?? u.cost?.total
+  const cost = usageCost(u)
   return clean({
     context: u.context ? clean({ tokens: u.context.tokens, window: u.context.window, percent: u.context.percent }) : null,
     costUsd: typeof cost === 'number' ? cost : null,
@@ -967,6 +1051,49 @@ async function openWeb($) {
 
 // A Text without undefined props, because the validator refuses props it does not know
 const T = (Text, text, style = {}) => Text({ wrap: 'truncate', ...clean(style), children: [String(text)] })
+
+// Words into lines of at most `width` cells, for the help text
+function wrapText(text, width) {
+  const lines = []
+  let line = ''
+  for (const word of text.split(' ')) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line)
+      line = word
+    } else {
+      line = line ? `${line} ${word}` : word
+    }
+  }
+  if (line) lines.push(line)
+  return lines
+}
+
+const meterColor = (pct) => (pct > 80 ? 'red' : pct > 60 ? 'yellow' : 'green')
+const limitName = (kind) => L.limitName[kind] ?? kind
+
+// When a plan limit's window starts over: the time today, or the weekday and time further out
+function resetText(iso, now = Date.now()) {
+  const at = Date.parse(iso)
+  if (!Number.isFinite(at)) return ''
+  return at - now < 20 * 3600_000 ? L.resetsAt(clockTime(at)) : L.resetsOn(L.weekdays[new Date(at).getDay()], clockTime(at))
+}
+
+// A label, a bar and what it stands for: context and plan limits, on Home and in Tokens
+function meterRow(ui, key, label, pct, note) {
+  const { Box, Text } = ui
+  return Box({
+    key,
+    flexDirection: 'row',
+    children: [
+      T(Text, pad(label, 12)),
+      T(Text, bar(pct / 100, 24), { color: meterColor(pct) }),
+      T(Text, ` ${Math.round(pct)}%` + (note ? `  ${note}` : ''), { dimColor: true }),
+    ],
+  })
+}
+
+const contextPct = (c) => (c ? (c.percent ?? ((c.tokens ?? 0) / (c.window || 1)) * 100) || 0 : null)
+const usageCost = (u) => (typeof u?.cost === 'number' ? u.cost : u?.cost?.usd ?? u?.cost?.total)
 
 function timelineBody(ui, width, maxRows) {
   const { Box, Text } = ui
@@ -1178,24 +1305,14 @@ async function apiBody(ui, $, width, maxRows) {
   try {
     const u = await $.session.usage()
     if (u?.context) {
-      const pct = (u.context.percent ?? (u.context.tokens / u.context.window) * 100) || 0
+      const pct = contextPct(u.context)
       S.maxCtxPct = Math.max(S.maxCtxPct, pct)
-      const color = pct > 80 ? 'red' : pct > 60 ? 'yellow' : 'green'
-      out.push(Box({
-        key: 'ctx',
-        flexDirection: 'row',
-        children: [
-          T(Text, pad(L.context, 10)),
-          T(Text, bar(pct / 100, 24), { color }),
-          T(Text, ` ${pct.toFixed(0)}% (${fmtTok(u.context.tokens ?? 0)} ${L.of} ${fmtTok(u.context.window ?? 0)})`, { dimColor: true }),
-        ],
-      }))
+      out.push(meterRow(ui, 'ctx', L.context, pct, `${fmtTok(u.context.tokens ?? 0)} ${L.of} ${fmtTok(u.context.window ?? 0)}`))
     }
-    const cost = typeof u?.cost === 'number' ? u.cost : u?.cost?.usd ?? u?.cost?.total
-    if (typeof cost === 'number') out.push(T(Text, `${pad(L.cost, 10)}US$ ${cost.toFixed(2)}`, { dimColor: true }))
+    const cost = usageCost(u)
+    if (typeof cost === 'number') out.push(T(Text, `${pad(L.cost, 12)}US$ ${cost.toFixed(2)}`, { dimColor: true }))
     for (const r of u?.rateLimits ?? []) {
-      const p = r.percentUsed ?? 0
-      out.push(T(Text, `${L.limit} ${r.kind}: ${bar(p / 100, 12)} ${Math.round(p)}%`, { dimColor: true }))
+      out.push(meterRow(ui, 'lim-' + r.kind, limitName(r.kind), r.percentUsed ?? 0, r.resetsAt ? resetText(r.resetsAt) : ''))
     }
   } catch {
     // usage() is not available here; carry on with what the radar collected
@@ -1206,7 +1323,7 @@ async function apiBody(ui, $, width, maxRows) {
     key: 'cache',
     flexDirection: 'row',
     children: [
-      T(Text, pad(L.cache, 10)),
+      T(Text, pad(L.cache, 12)),
       T(Text, bar(t.cacheRead / inputSide, 24), { color: 'green' }),
       T(Text, ` ${Math.round((t.cacheRead / inputSide) * 100)}% ${L.cacheNote}`, { dimColor: true }),
     ],
@@ -1224,13 +1341,11 @@ async function apiBody(ui, $, width, maxRows) {
   out.push(Box({
     key: 'spark',
     flexDirection: 'row',
-    children: [T(Text, pad(L.outPerReq, 10)), T(Text, sparkline(spark), { color: 'green' })],
+    children: [T(Text, pad(L.outPerReq, 12)), T(Text, sparkline(spark), { color: 'green' })],
   }))
   if (showHelp) {
     out.push(T(Text, ' '))
     for (const line of L.legend) out.push(T(Text, trunc(line, width), { dimColor: true }))
-  } else {
-    out.push(T(Text, L.helpHint, { dimColor: true }))
   }
   out.push(T(Text, ' '))
   out.push(T(Text, pad(L.colModel, 14) + pad(L.colAgent, 12) + L.colFresh.padStart(7) + 'cache↓'.padStart(8) +
@@ -1260,31 +1375,79 @@ async function apiBody(ui, $, width, maxRows) {
   return out
 }
 
-function summaryBody(ui, width) {
+// The session at a glance, then what each tab answers, its numbers included; with rows to spare,
+// the session's title on top and the tools the time went to below
+async function homeBody(ui, $, width, maxRows) {
+  const { Box, Text } = ui
+  const t = S.totals
+  let u = null
+  try {
+    u = await $.session.usage()
+  } catch {
+    // usage() is not available here: Home shows what the radar collected
+  }
+  let model = null
+  try {
+    model = shortModel(await $.session.model())
+  } catch {
+    // Fall back on the model of the main loop's last request
+  }
+  model ??= S.spans.findLast((s) => s.kind === 'api' && s.agent === 'main' && s.name !== '?')?.name ?? null
+  const effort = await readEffort($)
+
+  const row = (key, label, text, style) =>
+    Box({ key, flexDirection: 'row', children: [T(Text, pad(label, 12)), T(Text, trunc(text, Math.max(0, width - 12)), style)] })
+  const info = [row('h-model', L.homeModel, (model ?? '—') + (effort ? ` · ${L.homeEffort} ${effort}` : ''), { bold: true })]
+  if (u?.context) {
+    const pct = contextPct(u.context)
+    S.maxCtxPct = Math.max(S.maxCtxPct, pct)
+    info.push(meterRow(ui, 'h-ctx', L.context, pct, `${fmtTok(u.context.tokens ?? 0)} ${L.of} ${fmtTok(u.context.window ?? 0)}`))
+  }
+  const cost = usageCost(u)
+  const hit = t.tokIn ? Math.round((t.cacheRead / t.tokIn) * 100) : 0
+  info.push(row('h-tok', L.homeTokens, L.homeTokensLine(fmtTok(t.tokIn), hit, fmtTok(t.tokOut)) +
+    (typeof cost === 'number' ? ` · US$ ${cost.toFixed(2)}` : ''), { dimColor: true }))
+  const limits = u?.rateLimits ?? []
+  for (const r of limits) {
+    info.push(meterRow(ui, 'h-lim-' + r.kind, limitName(r.kind), r.percentUsed ?? 0, r.resetsAt ? resetText(r.resetsAt) : ''))
+  }
+  if (!limits.length) info.push(T(Text, trunc(L.noLimits, width), { dimColor: true }))
+
+  const g = L.guide
+  const guide = [
+    ['2', L.tabActivities, g.activities(S.turns.length)],
+    ['3', L.tabTimeline, g.timeline(t.calls, t.mcp, t.web)],
+    ['4', L.tabAgents, g.agents(t.agents)],
+    ['5', L.tabTokens, g.tokens(t.api)],
+    ['6', L.tabInsights, g.insights(cfg.insights, cfg.insights ? findings().length : 0)],
+    ['7', L.tabConfig, g.config],
+  ].map(([key, name, text]) => Box({
+    key: 'guide-' + key,
+    flexDirection: 'row',
+    children: [
+      T(Text, key + ' ', { bold: true }),
+      T(Text, pad(name, 12)),
+      T(Text, trunc(text, Math.max(0, width - 14)), { dimColor: true }),
+    ],
+  }))
+
+  let spare = maxRows - info.length - 2
+  const shown = guide.slice(0, Math.max(2, spare))
+  spare -= shown.length
+  const out = []
+  if (spare >= 2) {
+    out.push(T(Text, trunc(L.homeTitle, width), { bold: true }), T(Text, ' '))
+    spare -= 2
+  }
+  out.push(...info, T(Text, ' '), T(Text, L.whereToLook, { bold: true }), ...shown)
+  if (spare >= 4) out.push(...timeByTool(ui, width, spare))
+  return out
+}
+
+// The tools the time went to, with their failures, in at most maxRows rows
+function timeByTool(ui, width, maxRows) {
   const { Box, Text } = ui
   const out = []
-  const t = S.totals
-  const doneTurns = S.turns.filter((x) => x.end)
-  const avg = doneTurns.length ? doneTurns.reduce((n, x) => n + (x.end - x.start), 0) / doneTurns.length : 0
-
-  out.push(T(Text, `${plural(S.turns.length, L.turn, L.turns)} · ${L.avg} ${fmtDur(Math.round(avg))} · ` +
-    `${fmtTok(t.tokIn)} ${L.inputTokens} · ${fmtTok(t.tokOut)} ${L.outputTokens}`))
-  out.push(T(Text, ' '))
-
-  const byKind = Object.keys(KIND).map((k) => [k, S.spans.filter((s) => s.kind === k).length])
-  const maxKind = Math.max(1, ...byKind.map(([, n]) => n))
-  for (const [k, n] of byKind) {
-    out.push(Box({
-      key: 'k-' + k,
-      flexDirection: 'row',
-      children: [
-        T(Text, pad(`${KIND[k].icon} ${kindName(k)}`, 18), { color: KIND[k].color }),
-        T(Text, bar(n / maxKind, 20), { color: KIND[k].color }),
-        T(Text, ` ${n}`),
-      ],
-    }))
-  }
-
   const agg = new Map()
   for (const s of S.spans) {
     if (s.kind === 'api' || !s.end) continue
@@ -1294,7 +1457,7 @@ function summaryBody(ui, width) {
     if (s.status !== 'ok') cur.fail++
     agg.set(s.name, cur)
   }
-  const top = [...agg.entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, 8)
+  const top = [...agg.entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, Math.min(8, maxRows - 2))
   if (top.length) {
     out.push(T(Text, ' '), T(Text, L.timeByTool, { bold: true }))
     const maxMs = Math.max(1, ...top.map(([, v]) => v.ms))
@@ -1701,15 +1864,21 @@ export function register(on) {
       columnGap: 2,
       children: [
         Button({ key: 'export', label: L.export, hotkey: 'e', plain: true, dimColor: true, onPress: () => exportJson($) }),
+        // Clearing cannot be undone: the first press asks, a second within a few seconds clears
         Button({
           key: 'reset',
-          label: L.clear,
+          label: Date.now() - clearArmedAt < CLEAR_CONFIRM_MS ? L.clearConfirm : L.clear,
           hotkey: 'x',
           plain: true,
-          dimColor: true,
+          dimColor: Date.now() - clearArmedAt >= CLEAR_CONFIRM_MS,
           onPress: () => {
-            S = fresh()
-            openTurn = null
+            if (Date.now() - clearArmedAt < CLEAR_CONFIRM_MS) {
+              clearArmedAt = 0
+              S = fresh()
+              openTurn = null
+            } else {
+              clearArmedAt = Date.now()
+            }
             redraw($)
           },
         }),
@@ -1725,32 +1894,20 @@ export function register(on) {
         }),
         ...(web?.url && Link ? [Text({ wrap: 'truncate', children: [Link({ href: web.url, label: web.base.replace('http://', '') })] })] : []),
         Button({
-          key: 'lang',
-          label: `${L.language}: ${langPref === 'auto' ? 'auto' : langPref.toUpperCase()}`,
-          hotkey: 'l',
+          key: 'help',
+          label: L.help,
+          hotkey: 'h',
           plain: true,
-          dimColor: true,
-          onPress: async () => {
-            await saveLanguage($, LANGS[(LANGS.indexOf(langPref) + 1) % LANGS.length])
+          dimColor: !showHelp,
+          onPress: () => {
+            showHelp = !showHelp
             redraw($)
           },
         }),
-        ...(tab === 'api'
-          ? [Button({
-              key: 'help',
-              label: L.help,
-              hotkey: 'h',
-              plain: true,
-              dimColor: !showHelp,
-              onPress: () => {
-                showHelp = !showHelp
-                redraw($)
-              },
-            })]
-          : []),
       ],
     })
 
+    // The details went to Home: here only what tells at a glance how the session is going
     const t = S.totals
     const fails = t.errors + t.denied
     const status = Box({
@@ -1758,25 +1915,26 @@ export function register(on) {
       flexDirection: 'row',
       children: [
         T(Text, badgeText() + ' ', { color: badge.color, bold: true }),
-        T(Text, trunc(`⏱ ${fmtDur(Date.now() - S.startedAt)} · ${plural(S.turns.length, L.turn, L.turns)} · ` +
-          `${t.calls} ${L.statusTools} · ${t.mcp} ${L.statusMcp} · ${t.web} ${L.statusWeb} · ` +
-          `${t.agents} ${L.statusAgents} · ${t.api} ${L.statusApi}`, width - 21), { dimColor: true }),
+        T(Text, trunc(`⏱ ${fmtDur(Date.now() - S.startedAt)} · ${plural(S.turns.length, L.activity, L.activities)} · ` +
+          `${plural(t.calls, L.tool, L.tools)}`, width - 21), { dimColor: true }),
         ...(fails ? [T(Text, ` · ${plural(fails, L.fail, L.fails)}`, { color: 'red' })] : []),
       ],
     })
 
+    // h: a few lines on how to read the tab, above it
+    const help = showHelp ? [...wrapText(L.helpText[tab], width).map((line) => T(Text, line, { color: 'cyan' })), T(Text, ' ')] : []
     // Two rows fewer for the body, so the credit footer stays on screen
-    const room = Math.max(6, bodyRows - 9)
+    const room = Math.max(4, Math.max(6, bodyRows - 9) - help.length)
     let body
     if (tab === 'timeline') body = timelineBody(ui, width, room - 3)
     else if (tab === 'activities') body = activitiesBody(ui, $, width, room)
     else if (tab === 'agents') body = agentsBody(ui, width)
-    else if (tab === 'api') body = await apiBody(ui, $, width, room)
+    else if (tab === 'tokens') body = await apiBody(ui, $, width, room)
     else if (tab === 'insights') body = insightsBody(ui, $, width, room)
     else if (tab === 'config') body = configBody(ui, $, width)
-    else body = summaryBody(ui, width)
+    else body = await homeBody(ui, $, width, room)
 
     const credit = T(Text, trunc(L.credit, width), { dimColor: true })
-    return Box({ flexDirection: 'column', children: [tabs, actions, status, T(Text, ' '), ...body, T(Text, ' '), credit] })
+    return Box({ flexDirection: 'column', children: [tabs, actions, status, T(Text, ' '), ...help, ...body, T(Text, ' '), credit] })
   })
 }
