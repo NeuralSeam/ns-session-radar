@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.7.1 | 2.1.302 | Terminal | Windows 11, Node 22, English and `pt_BR` | 2026-10-17 |
 | 0.7.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-16 |
 | 0.6.0 | 2.1.301 | Terminal | Windows 11, Node 22 | 2026-10-16 |
 | 0.5.1 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-15 |
@@ -61,6 +62,13 @@ in headless Chrome at 1440, 900 and 420 pixels against the real mod and server f
 Code. `npm test` passed in English and `pt_BR`, and `claude plugin validate . --strict` passed on
 Claude Code 2.1.301. Not yet seen in a real session for this row: the toast in Windows Terminal and
 the browser's system notification.
+
+**What the 0.7.1 row adds:** the export's new folder. In a real session in the terminal, after
+`/reload-plugins` from 0.5.1, the saved export went on landing in `.claude/session-radar/` of the
+folder the session started in, and nothing more was written in the project's root. In the
+simulation, its `.gitignore` is written once per copy of the module and a reload after a `cd` keeps
+that folder. `npm test` passed in English and `pt_BR`, and `claude plugin validate . --strict`
+passed on Claude Code 2.1.302.
 
 **What it does not cover:** the Desktop app, and builds other than 2.1.301. The checks in
 [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) are what fills in a row.

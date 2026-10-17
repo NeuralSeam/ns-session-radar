@@ -26,7 +26,7 @@ const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 // The release, shown in the credit line and on the page. It must match .claude-plugin/plugin.json;
 // npm test checks it
-const VERSION = '0.7.0'
+const VERSION = '0.7.1'
 const LANGS = ['auto', 'pt', 'en']
 const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
