@@ -8,6 +8,17 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-17
+
+### Changed
+
+- **Exports go to `.claude/session-radar/`** of the folder the session started in, not the current
+  folder. With `Save the export automatically` on, a `cd` during the session no longer leaves copies
+  of the file in other folders. The folder gets a `.gitignore` holding `*`, so your project's own
+  `.gitignore` needs nothing. Move earlier `session-radar-*.json` files there by hand if you want
+  `/session-radar:radar-review` to find them first; it still looks in the working folder when the
+  new one is empty.
+
 ## [0.7.0] - 2026-10-16
 
 ### Fixed
@@ -216,7 +227,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.0...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.1...main
+[0.7.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.0...v0.5.1

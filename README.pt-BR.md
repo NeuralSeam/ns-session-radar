@@ -37,7 +37,7 @@ Para testar sem instalar: clone este repositório e rode `claude --plugin-dir ./
 | Comando | O que faz |
 | --- | --- |
 | `/radar` | Abre ou fecha o painel, mesmo com o Claude trabalhando |
-| `/radar-export` | Grava tudo em `session-radar-<data>.json` na pasta atual |
+| `/radar-export` | Grava tudo em `.claude/session-radar/session-radar-<data>.json` da pasta onde a sessão começou |
 | `/radar-lang pt\|en\|auto` | Define o idioma e o mantém nas próximas sessões |
 | `/radar-web` | Abre o radar no navegador; `/radar-web stop` encerra |
 | `/radar-config` | Abre o painel na aba Config |
@@ -91,9 +91,9 @@ do sistema.
     servidores.
   - *Sugerir a análise com IA*, *Apagar o histórico guardado* e o idioma.
   - *Salvar o export automaticamente quando uma atividade terminar*: grava o export sem perguntar,
-    um `session-radar-<início>.json` por conversa na pasta atual, regravado a cada atividade com a
-    conversa inteira, pronto para a [análise com IA](#análise-com-ia). Ponha `session-radar-*.json`
-    no seu `.gitignore`.
+    um `session-radar-<início>.json` por conversa em `.claude/session-radar/` da pasta onde a sessão
+    começou, regravado a cada atividade com a conversa inteira, pronto para a
+    [análise com IA](#análise-com-ia). Essa pasta se ignora no git sozinha.
 
   - *Sempre mostrar o crachá desta sessão*, abaixo do prompt (veja abaixo).
 

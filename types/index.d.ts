@@ -7,6 +7,7 @@ export type SessionRadarSaved = {
   v: 1
   savedAt: number
   seq: number
+  exportRoot: string | null
   S: {
     id: string
     startedAt: number

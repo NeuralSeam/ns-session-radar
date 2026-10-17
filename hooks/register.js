@@ -26,7 +26,7 @@ const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 // The release, shown in the credit line and on the page. It must match .claude-plugin/plugin.json;
 // npm test checks it
-const VERSION = '0.7.0'
+const VERSION = '0.7.1'
 const LANGS = ['auto', 'pt', 'en']
 const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
@@ -466,7 +466,7 @@ function saveState($) {
   if (!restoreDone) return saving
   saveDirty = false
   lastSave = Date.now()
-  const value = { v: 1, savedAt: lastSave, seq, S: { ...S, agents: [...S.agents.values()] } }
+  const value = { v: 1, savedAt: lastSave, seq, exportRoot, S: { ...S, agents: [...S.agents.values()] } }
   saving = saving.then(() => $.state.set(SAVED, value)).catch(() => {
     saveDirty = true
   })
@@ -483,6 +483,7 @@ async function restoreState($) {
     return
   }
   if (saved?.v !== 1 || !Array.isArray(saved.S?.spans) || !Array.isArray(saved.S.agents)) return
+  if (typeof saved.exportRoot === 'string') exportRoot = saved.exportRoot
   const base = fresh()
   S = {
     ...base,
@@ -877,10 +878,27 @@ async function trackUsage($) {
 
 const exportName = (at) => `session-radar-${new Date(at).toISOString().replace(/[:.]/g, '-')}.json`
 
+// Exports go under the folder the session started in, kept across reloads, because a relative path
+// follows the current folder and a cd during the session would scatter the auto-saved file. The
+// folder ignores itself, so no project has to touch its own .gitignore.
+const EXPORT_DIR = '.claude/session-radar'
+let exportRoot = null
+let ignoreWritten = false
+
+async function exportPath($, name) {
+  const dir = exportRoot ? `${exportRoot}/${EXPORT_DIR}` : EXPORT_DIR
+  if (!ignoreWritten) {
+    await $.fs.write(`${dir}/.gitignore`, '*\n')
+    ignoreWritten = true
+  }
+  return `${dir}/${name}`
+}
+
 async function exportJson($) {
-  const file = exportName(Date.now())
+  const name = exportName(Date.now())
+  const file = `${EXPORT_DIR}/${name}`
   try {
-    await $.fs.write(file, JSON.stringify(snapshot(), null, 2))
+    await $.fs.write(await exportPath($, name), JSON.stringify(snapshot(), null, 2))
     $.ui.toast(`${L.exported} ${file}`)
     return file
   } catch (err) {
@@ -896,9 +914,9 @@ let autoWrite = Promise.resolve()
 
 function autoExport($) {
   if (!cfg.autoExport) return autoWrite
-  const file = exportName(S.startedAt)
+  const name = exportName(S.startedAt)
   const text = JSON.stringify(snapshot(), null, 2)
-  autoWrite = autoWrite.then(() => $.fs.write(file, text)).catch(() => {})
+  autoWrite = autoWrite.then(async () => $.fs.write(await exportPath($, name), text)).catch(() => {})
   return autoWrite
 }
 
@@ -1507,6 +1525,7 @@ export function register(on) {
     }
     cwd = e.cwd ?? cwd
     if (!restoreDone) await restoreState($)
+    exportRoot ??= cwd
     let sessionId = null
     try {
       sessionId = await $.session.id()

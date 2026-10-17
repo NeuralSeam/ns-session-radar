@@ -1,4 +1,4 @@
-# Files /radar-export writes into a project
+# Exports written by versions before 0.7.1, into the current folder
 session-radar-*.json
 
 # Type declarations Claude Code writes when the mod is loaded with --plugin-dir
