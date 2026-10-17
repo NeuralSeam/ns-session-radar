@@ -8,6 +8,15 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+### Changed
+
+- **Exports go to `.claude/session-radar/`** of the folder the session started in, not the current
+  folder. With `Save the export automatically` on, a `cd` during the session no longer leaves copies
+  of the file in other folders. The folder gets a `.gitignore` holding `*`, so your project's own
+  `.gitignore` needs nothing. Move earlier `session-radar-*.json` files there by hand if you want
+  `/session-radar:radar-review` to find them first; it still looks in the working folder when the
+  new one is empty.
+
 ## [0.7.0] - 2026-10-16
 
 ### Fixed

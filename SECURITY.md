@@ -71,7 +71,7 @@ same list from the code, under `calls:`.
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
 | `$.session.usage` | Reads context, cost and plan limits for the Home tab and the browser view; with insights on, also when an activity ends, to keep the highest context use |
 | `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
-| `$.fs.write` | Writes the export file, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
+| `$.fs.write` | Writes the export file and the `.gitignore` of its folder, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
 | `$.store.get`, `$.store.set` | Reads the language, the settings and, with insights on, the history when the session starts; writes the language when you change it, the settings when you change one, and the history when an activity or the session ends while insights are on |
 | `$.store.delete` | Removes the history when you press `Delete the stored history` |
 | `$.process.spawn` | Starts `node web/server.mjs`, **only** when you run `/radar-web` or press `w` |
@@ -126,15 +126,16 @@ change no file without your confirmation. Read the file before you run it; it is
 
 ## The export file
 
-`/radar-export` writes JSON into the folder Claude Code is running in. With `Save the export
+`/radar-export` writes JSON into `.claude/session-radar/` of the folder the session started in, and
+puts a `.gitignore` holding `*` beside it, so the folder stays out of git. With `Save the export
 automatically` on in Config (off by default), the same file is also written, without asking, each
 time an activity ends: one file per conversation, `session-radar-<when it started>.json`, rewritten
 with the whole conversation so far. It contains the tool
 arguments and prompt beginnings described above, which can include a secret if one was typed into a
 shell command or a prompt. With insights on, it also holds the findings, the project's history and
 the names of the MCP servers in `.mcp.json`. Treat
-the file like a shell history: read it before sharing it, and do not commit it. This repository's
-`.gitignore` ignores `session-radar-*.json`, but your project's may not.
+the file like a shell history: read it before sharing it, and do not commit it. A
+`git add -f` still adds it past that `.gitignore`.
 
 ## Check it yourself
 

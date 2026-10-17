@@ -104,7 +104,7 @@ press Enter to change a line:
 | Warn before the cache expires | One notification per cache entry, 30 s to 5 min before the main session's cache expires, while nothing is running: how long is left and how many tokens the next request would rewrite. An unknown TTL counts as 5 minutes, and the text says so |
 | Insights, with per-project history | Turns on the Insights tab and keeps counts per project between sessions (below) |
 | Suggest the AI review | Shows the [AI review](#ai-review) in the Insights tab |
-| Save the export automatically when an activity ends | Writes the export after each activity, without asking: one `session-radar-<start>.json` per conversation in the current folder, rewritten each time with the whole conversation, ready for the [AI review](#ai-review). Add `session-radar-*.json` to your `.gitignore` |
+| Save the export automatically when an activity ends | Writes the export after each activity, without asking: one `session-radar-<start>.json` per conversation in `.claude/session-radar/` of the folder the session started in, rewritten each time with the whole conversation, ready for the [AI review](#ai-review). That folder ignores itself in git |
 | Always show this session's badge | Keeps the session's badge under the prompt even with the browser view closed. See [Browser view](#browser-view) |
 | Delete the stored history | Deletes every project's history |
 | Language | auto, Portuguese or English |
@@ -207,7 +207,7 @@ To try it without installing, clone this repository and start Claude Code with
 | Command | What it does |
 | --- | --- |
 | `/radar` | Opens or closes the pane. Works while Claude is working. |
-| `/radar-export` | Writes everything recorded so far to `session-radar-<time>.json` in the current folder |
+| `/radar-export` | Writes everything recorded so far to `.claude/session-radar/session-radar-<time>.json` in the folder the session started in |
 | `/radar-lang pt\|en\|auto` | Sets the language and keeps it for your next sessions; with no argument, says which is set |
 | `/radar-web` | Opens the radar in your browser (see [Browser view](#browser-view)); `/radar-web stop` ends it |
 | `/radar-config` | Opens the pane on the Config tab |
@@ -244,7 +244,7 @@ on, as the counts of the [history](#what-it-shows).
 The rules in the Insights tab find patterns and measure them; they do not write your CLAUDE.md. The
 plugin also ships a skill for that, `/session-radar:radar-review`. Export first (`e`), or turn on
 `Save the export automatically` in Config, then run it.
-Claude, in your session and with your permissions, reads the newest `session-radar-*.json`, your
+Claude, in your session and with your permissions, reads the newest `.claude/session-radar/session-radar-*.json`, your
 CLAUDE.md, the `permissions`, `model` and `hooks` of your settings, and `.mcp.json`, and proposes
 changes as diffs, each with the numbers behind it and the radar metric that should move. It also
 does what fixed rules cannot: it groups your prompts into recurring tasks worth a skill, spots where

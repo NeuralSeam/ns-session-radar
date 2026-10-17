@@ -25,6 +25,7 @@ register((name, a, b) => hooks.push({ name, matcher: b ? a : null, fn: b ?? a })
 const el = (type) => (props) => ({ type, ...props })
 const toasts = []
 const writes = []
+const ignores = []
 const notes = []
 // What $.ui.notify answers: the bell by default, as a terminal with no notification sequence
 let notifyAnswer = () => ({ isSent: true, channel: 'terminal_bell' })
@@ -88,7 +89,7 @@ const $ = {
   // The /config rows; the radar keeps only the effort's value
   config: { list: async () => [{ key: 'theme', value: 'dark' }, { key: 'effortLevel', label: 'Effort', value: 'high' }] },
   fs: {
-    write: async (path, text) => writes.push({ path, text }),
+    write: async (path, text) => (path.endsWith('/.gitignore') ? ignores : writes).push({ path, text }),
     read: async (path) => {
       if (path === '.mcp.json') return JSON.stringify({ mcpServers: { github: {}, jira: { env: { TOKEN: 'secret' } } } })
       throw new Error('ENOENT')
@@ -173,6 +174,10 @@ if (PRINT) console.log('spinner suffix:', spin.props.suffix)
 // Export writes one JSON file with the counts the session produced
 await fire('command.run', { command: 'radar-export' })
 assert.equal(writes.length, 1)
+assert.match(writes[0].path, /^\/work\/app\/\.claude\/session-radar\/session-radar-[\dT-]+Z\.json$/,
+  'under the folder the session started in, not the current one')
+assert.deepEqual(ignores, [{ path: '/work/app/.claude/session-radar/.gitignore', text: '*\n' }],
+  'the export folder ignores itself')
 const data = JSON.parse(writes[0].text)
 assert.equal(data.totals.calls, 6)
 assert.equal(data.totals.mcp, 1)
@@ -458,7 +463,8 @@ await fire('turn.complete', { turnId: 'x3', durationMs: 10 })
 await sleep(5)
 const auto = autoOf(before)
 assert.equal(auto.length, 2, 'one write per activity')
-assert.match(auto[0].path, /^session-radar-[\dT-]+Z\.json$/)
+assert.match(auto[0].path, /^\/work\/app\/\.claude\/session-radar\/session-radar-[\dT-]+Z\.json$/)
+assert.equal(ignores.length, 1, 'the .gitignore is written once per copy of the module')
 assert.equal(auto[0].path, auto[1].path, 'the same conversation keeps its file')
 const autoData = JSON.parse(auto[1].text)
 assert.equal(autoData.turns.at(-1).prompt, 'run the suite')
@@ -604,10 +610,11 @@ const copy = await import('../hooks/register.js?reload')
 copy.register((name, a, b) => reloaded.push({ name, matcher: b ? a : null, fn: b ?? a }))
 const fireCopy = (name, ev, next = async (e) => e) =>
   reloaded.find((x) => x.name === name && matches(x, ev)).fn($, ev, next)
-await fireCopy('session.start', { cwd: '/work/app' })
+await fireCopy('session.start', { cwd: '/work/app/src' })
 const writesBefore = writes.length
 await fireCopy('command.run', { command: 'radar-export' })
 assert.equal(writes.length, writesBefore + 1)
+assert.match(writes.at(-1).path, /^\/work\/app\/\.claude\/session-radar\//, 'a reload after a cd keeps the folder the session started in')
 const afterReload = JSON.parse(writes.at(-1).text)
 assert.equal(afterReload.startedAt, beforeReload.startedAt, 'the same conversation, not a new one')
 assert.deepEqual(afterReload.totals, beforeReload.totals, 'nothing recorded is lost')

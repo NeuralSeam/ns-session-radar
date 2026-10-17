@@ -13,8 +13,9 @@ Answer in the language the person writes in.
 ## 1. Find the export
 
 - If the person gave a path, use that file.
-- Otherwise list `session-radar-*.json` in the working directory and take the newest. If there is
-  more than one, say which you picked and that older ones exist.
+- Otherwise list `session-radar-*.json` in `.claude/session-radar/` of the project and take the
+  newest. If that folder has none, look in the working directory, where versions before 0.7.1 wrote
+  them. If there is more than one, say which you picked and that older ones exist.
 - If there is none, tell the person to open the radar (`/radar`), press `e` to export, and run this
   review again, or to turn on `Save the export automatically` in `/radar-config` so every activity
   leaves one. Stop there.
