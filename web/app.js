@@ -10,7 +10,7 @@
 ;(() => {
   const I18N = {
     en: {
-      views: { home: 'Home', activities: 'Activities', insights: 'Insights', timeline: 'Timeline', agents: 'Agents', tokens: 'Tokens' },
+      views: { home: 'Home', activities: 'Activities', insights: 'Insights', timeline: 'Timeline', agents: 'Agents', tokens: 'Tokens', hooks: 'Hooks' },
       kinds: { tool: 'Tools', mcp: 'MCP', web: 'Web', agent: 'Subagents', api: 'Model API' },
       model: 'Model', effort: (e) => `effort ${e}`, tokens: 'Tokens',
       tokensSub: (out, hit) => `${out} out · ${hit}% from cache`, tokIn: 'in',
@@ -32,7 +32,7 @@
         connecting: 'connecting', live: 'live', stale: 'no updates from Claude Code', reconnecting: 'reconnecting',
         ended: 'stopped: run /radar-web again', unauthorized: 'link expired: run /radar-web again', noToken: 'open this page with /radar-web',
       },
-      metrics: { elapsed: 'session', turns: 'turns', calls: 'tools', mcp: 'MCP', web: 'web', agents: 'subagents', api: 'requests', fails: 'failures' },
+      metrics: { elapsed: 'session', turns: 'turns', calls: 'tools', mcp: 'MCP', web: 'web', agents: 'subagents', api: 'requests', fails: 'failures', hooks: 'hooks', sessions: 'live' },
       emptyWaiting: 'Waiting for the first snapshot from Claude Code.',
       emptyTimeline: 'Nothing recorded yet. Send a prompt and each step Claude takes shows up here.',
       emptyFiltered: 'Nothing matches the current filters.',
@@ -76,7 +76,21 @@
         w5: 'written, 5m TTL', w1h: 'written, 1h TTL', type: 'Type', parent: 'Parent', calls: 'Calls', recent: 'Recent calls',
         ttl: 'Cache TTL', cacheAt: 'Cache last used', openAgent: 'Open subagent', inTimeline: 'Show in timeline', agentCalls: 'Calls in memory',
       },
-      hint: '1–6 switch views · / search · Esc close',
+      hint: '1–7 switch views · / search · Esc close',
+      allSessions: (n) => `All sessions (${n})`, nSessions: (n) => `${n} ${n === 1 ? 'session' : 'sessions'}`,
+      sessionTip: 'Every Claude Code session on this machine that has the radar sends here. Pick one, or see all of them.',
+      sessAlive: 'live', sessBusy: (p) => `working: ${p}`, sessIdle: 'waiting for a prompt',
+      pickSession: 'This view shows one session at a time: pick one in the header, or below.',
+      noHooks: 'No hook events yet. Every hook event Claude Code raises (PreToolUse, PostToolUse, Stop, SessionStart, Notification, …) shows up here, whether or not a hook of yours is configured for it.',
+      hookNote: 'Time is what the hooks beneath the radar took; the result is what they answered. Events with no hook configured pass with no action.',
+      allEvents: 'All events', hooksIn: (n) => `Hooks of this activity (${n})`,
+      hooksCapped: (n, all) => `Showing the newest ${n} of ${all}.`, pieces: (n) => `${n} pieces`,
+      hookOut: {
+        allow: 'allowed', ask: 'asked', deny: 'denied', block: 'blocked', stop: 'stopped', ctx: (n) => `+${n} context`,
+        rewrote: 'changed', retry: 'retry', title: 'titled', none: 'no action',
+      },
+      hookCol: { time: 'Time', session: 'Session', event: 'Event', target: 'Target', activity: 'Activity', result: 'Result' },
+      hookDetail: { event: 'Event', session: 'Session', target: 'Target', result: 'Result', reason: 'Reason', context: 'Context added', title: 'Session title', pieces: 'Pieces shown' },
       badgeTip: (code, cwd) => `Session ${code}${cwd ? ` in ${cwd}` : ''}. The same badge shows under the prompt of its terminal while this view is open.`,
       endedTitle: 'ended',
       credit: 'Session Radar · by Neural Seam · neuralseam.cloud',
@@ -86,7 +100,7 @@
       adTag: 'Ad', adLabel: 'Advertisement',
     },
     pt: {
-      views: { home: 'Início', activities: 'Atividades', insights: 'Insights', timeline: 'Tempo', agents: 'Agentes', tokens: 'Tokens' },
+      views: { home: 'Início', activities: 'Atividades', insights: 'Insights', timeline: 'Tempo', agents: 'Agentes', tokens: 'Tokens', hooks: 'Hooks' },
       kinds: { tool: 'Ferramentas', mcp: 'MCP', web: 'Web', agent: 'Subagentes', api: 'API do modelo' },
       model: 'Modelo', effort: (e) => `esforço ${e}`, tokens: 'Tokens',
       tokensSub: (out, hit) => `${out} saída · ${hit}% do cache`, tokIn: 'entrada',
@@ -108,7 +122,7 @@
         connecting: 'conectando', live: 'ao vivo', stale: 'sem atualizações do Claude Code', reconnecting: 'reconectando',
         ended: 'encerrado: rode /radar-web de novo', unauthorized: 'link expirado: rode /radar-web de novo', noToken: 'abra esta página com /radar-web',
       },
-      metrics: { elapsed: 'sessão', turns: 'turnos', calls: 'ferramentas', mcp: 'MCP', web: 'web', agents: 'subagentes', api: 'requisições', fails: 'falhas' },
+      metrics: { elapsed: 'sessão', turns: 'turnos', calls: 'ferramentas', mcp: 'MCP', web: 'web', agents: 'subagentes', api: 'requisições', fails: 'falhas', hooks: 'hooks', sessions: 'ao vivo' },
       emptyWaiting: 'Aguardando o primeiro envio do Claude Code.',
       emptyTimeline: 'Nada registrado ainda. Envie um prompt e cada passo do Claude aparece aqui.',
       emptyFiltered: 'Nada corresponde aos filtros atuais.',
@@ -152,7 +166,21 @@
         w5: 'gravados, TTL 5m', w1h: 'gravados, TTL 1h', type: 'Tipo', parent: 'Pai', calls: 'Chamadas', recent: 'Últimas chamadas',
         ttl: 'TTL do cache', cacheAt: 'Último uso do cache', openAgent: 'Abrir subagente', inTimeline: 'Ver no tempo', agentCalls: 'Chamadas na memória',
       },
-      hint: '1–6 trocam a visão · / busca · Esc fecha',
+      hint: '1–7 trocam a visão · / busca · Esc fecha',
+      allSessions: (n) => `Todas as sessões (${n})`, nSessions: (n) => `${n} ${n === 1 ? 'sessão' : 'sessões'}`,
+      sessionTip: 'Toda sessão do Claude Code nesta máquina que tem o radar envia para cá. Escolha uma, ou veja todas.',
+      sessAlive: 'ao vivo', sessBusy: (p) => `trabalhando: ${p}`, sessIdle: 'aguardando prompt',
+      pickSession: 'Esta visão mostra uma sessão por vez: escolha uma no cabeçalho ou abaixo.',
+      noHooks: 'Nenhum evento de hook ainda. Todo evento de hook do Claude Code (PreToolUse, PostToolUse, Stop, SessionStart, Notification, …) aparece aqui, tenha você um hook configurado para ele ou não.',
+      hookNote: 'O tempo é o que os hooks abaixo do radar levaram; o resultado é o que eles responderam. Eventos sem hook configurado passam sem ação.',
+      allEvents: 'Todos os eventos', hooksIn: (n) => `Hooks desta atividade (${n})`,
+      hooksCapped: (n, all) => `Mostrando os ${n} mais recentes de ${all}.`, pieces: (n) => `${n} partes`,
+      hookOut: {
+        allow: 'permitiu', ask: 'perguntou', deny: 'negou', block: 'bloqueou', stop: 'parou', ctx: (n) => `+${n} contexto`,
+        rewrote: 'alterou', retry: 'repetir', title: 'deu título', none: 'sem ação',
+      },
+      hookCol: { time: 'Hora', session: 'Sessão', event: 'Evento', target: 'Alvo', activity: 'Atividade', result: 'Resultado' },
+      hookDetail: { event: 'Evento', session: 'Sessão', target: 'Alvo', result: 'Resultado', reason: 'Motivo', context: 'Contexto adicionado', title: 'Título da sessão', pieces: 'Partes exibidas' },
       badgeTip: (code, cwd) => `Sessão ${code}${cwd ? ` em ${cwd}` : ''}. O mesmo crachá aparece abaixo do prompt do terminal dela enquanto esta visão está aberta.`,
       endedTitle: 'encerrada',
       credit: 'Session Radar · por Neural Seam · neuralseam.cloud',
@@ -165,7 +193,10 @@
 
   const KINDS = ['tool', 'mcp', 'web', 'agent', 'api']
   // The first three match the terminal pane's tabs 1 to 3
-  const VIEWS = ['home', 'activities', 'insights', 'timeline', 'agents', 'tokens']
+  const VIEWS = ['home', 'activities', 'insights', 'timeline', 'agents', 'tokens', 'hooks']
+  // The views that show every session together when no single one is picked
+  const MERGED = ['home', 'activities', 'hooks']
+  const HOOKS_SHOWN = 400
   const MEM_KEEP = 300
   const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
   const WINDOW_MS = { '15m': 15 * 60_000, '5m': 5 * 60_000, '1m': 60_000 }
@@ -186,6 +217,11 @@
   const $ = (id) => document.getElementById(id)
 
   let T = /^pt\b/i.test(navigator.language) ? I18N.pt : I18N.en
+  // Every session that sends to this server: key -> { key, alive, data, offset, receivedAt, sig }
+  const sessions = new Map()
+  // The session being drawn, its snapshot and the difference between its clock and the page's. A
+  // view of all sessions draws each one in turn (withSession)
+  let curKey = null
   let data = null
   let offset = 0
   let receivedAt = 0
@@ -211,18 +247,22 @@
     turnsTouched: false,
     sort: { tokens: ['start', -1], tools: ['ms', -1] },
     legend: false,
+    // 'all', or the key of the one session the views show
+    session: 'all',
+    hookEvent: 'all',
   }
 
   try {
     const saved = JSON.parse(localStorage.getItem('session-radar.ui') || '{}')
     if (VIEWS.includes(saved.view)) ui.view = saved.view
     if (WINDOW_MS[saved.window] || saved.window === 'all') ui.window = saved.window
+    if (typeof saved.session === 'string') ui.session = saved.session
   } catch {
     // Storage is unavailable; the defaults stand
   }
   const remember = () => {
     try {
-      localStorage.setItem('session-radar.ui', JSON.stringify({ view: ui.view, window: ui.window }))
+      localStorage.setItem('session-radar.ui', JSON.stringify({ view: ui.view, window: ui.window, session: ui.session }))
     } catch {
       // Storage is unavailable; nothing to keep
     }
@@ -283,6 +323,54 @@
 
   // The mod's clock, which stamped every time in the snapshot
   const now = () => Date.now() - offset
+
+  // ---------------------------------------------------------------------------
+  // Sessions: the live ones first, then the newest
+  // ---------------------------------------------------------------------------
+
+  const sessionList = () => [...sessions.values()].filter((s) => s.data)
+    .sort((a, b) => (b.alive - a.alive) || Date.parse(b.data.startedAt) - Date.parse(a.data.startedAt))
+
+  // The session the views draw: the one picked, or the only one there is; null with several and none
+  // picked, when the views that can show them all do
+  function focusedSession() {
+    if (ui.session !== 'all') {
+      const s = sessions.get(ui.session)
+      if (s?.data) return s
+      // A key from an earlier visit, or a session the server dropped: back to all of them
+      if (sessions.size) ui.session = 'all'
+    }
+    const list = sessionList()
+    return list.length === 1 ? list[0] : null
+  }
+  const showingAll = () => !focusedSession() && sessionList().length > 1
+
+  function use(sess) {
+    curKey = sess?.key ?? null
+    data = sess?.data ?? null
+    offset = sess?.offset ?? 0
+  }
+
+  // Draws with another session's snapshot and clock, then puts the drawn session back
+  function withSession(sess, fn) {
+    const saved = [curKey, data, offset]
+    use(sess)
+    try {
+      return fn()
+    } finally {
+      ;[curKey, data, offset] = saved
+    }
+  }
+
+  const sessionName = (s) => s.data.session?.title || s.data.session?.project || s.key.slice(0, 8)
+
+  // The session's mark and code in its colour, and its name, for a row that could be any session's
+  function sessionChip(s) {
+    const b = s.data.session ?? {}
+    const color = BADGE_HEX[b.color] ? b.color : 'blue'
+    return h('span', { class: `sess-chip b-${color}${s.alive ? '' : ' ended'}`, title: sessionName(s) },
+      h('span', { class: 'badge-mark' }, b.mark ?? '●'), h('span', { class: 'badge-code' }, b.code ?? ''), h('span', { class: 'sess-chip-name' }, sessionName(s)))
+  }
 
   // ---------------------------------------------------------------------------
   // Reading the snapshot
@@ -363,7 +451,12 @@
     ui.selected = sel
     render()
   }
-  const isSelected = (type, id) => ui.selected?.type === type && ui.selected.id === id
+  // A handler that selects an item of the session being drawn, whichever is drawn when it is pressed
+  const selectNow = (sel) => {
+    const key = curKey
+    return () => select({ ...sel, key })
+  }
+  const isSelected = (type, id) => ui.selected?.type === type && ui.selected.id === id && ui.selected.key === curKey
 
   // A sortable table: cols are { key, label, cls, value(row) for sorting, cell(row) for drawing }
   // A data table. cols: { key, label, cls, width, hide ('sm': gone on a phone), value(row) to sort by,
@@ -466,7 +559,7 @@
       const dur = st === 'denied' ? T.status.denied : fmtDur((sp.end ?? t1) - sp.start)
       return h('div', {
         class: `tl-row ${isSelected('span', sp.id) ? 'selected' : ''}`,
-        onclick: () => select({ type: 'span', id: sp.id }),
+        onclick: selectNow({ type: 'span', id: sp.id }),
       },
       h('div', { class: 'tl-name', style: { '--depth': depth } },
         depth ? h('span', { class: 'tl-branch' }, '↳') : null,
@@ -487,63 +580,75 @@
   // Activities
   // ---------------------------------------------------------------------------
 
+  // The activities of the session shown, or of every session, newest first. An activity is known by
+  // its session's key and its own id, so two sessions' activities never open together
   function activitiesView() {
+    const all = showingAll()
+    const list = all ? sessionList() : [focusedSession()].filter(Boolean)
+    const entries = list.flatMap((sess) => sess.data.turns.map((t) => ({ sess, t }))).sort((a, b) => b.t.start - a.t.start)
+    if (!entries.length) return [empty(T.emptyActivities)]
+    const keyOf = (e) => `${e.sess.key}|${e.t.id}`
+    const open = ui.turnsTouched ? ui.openTurns : new Set([keyOf(entries[0])])
+    const out = entries.map((e) => withSession(e.sess, () => activityEl(e.t, keyOf(e), open, all ? e.sess : null))).filter(Boolean)
+    return out.length ? out : [empty(T.emptyFiltered)]
+  }
+
+  function activityEl(t, key, open, sess) {
     const agents = agentsById()
-    if (!data.turns.length) return [empty(T.emptyActivities)]
-    const latest = data.turns.at(-1).id
-    const open = ui.turnsTouched ? ui.openTurns : new Set([latest])
     const q = ui.search.trim().toLowerCase()
     const t1 = now()
+    const calls = data.spans.filter((sp) => sp.turn === t.id && sp.kind !== 'api')
+    const shown = calls.filter((sp) => spanPasses(sp, agents, { agent: false }))
+    const hooks = hooksOf(data).filter((hk) => hk.turn === t.id)
+    const hooksShown = hooks.filter((hk) => hookPasses(hk, q, { event: false }))
+    const promptHit = q && (t.prompt || '').toLowerCase().includes(q)
+    const filtering = q || ui.status !== 'all' || ui.kinds.size !== KINDS.length
+    if (filtering && !promptHit && !shown.length && !hooksShown.length) return null
 
-    const out = []
-    for (const t of [...data.turns].reverse()) {
-      const calls = data.spans.filter((sp) => sp.turn === t.id && sp.kind !== 'api')
-      const shown = calls.filter((sp) => spanPasses(sp, agents, { agent: false }))
-      const promptHit = q && (t.prompt || '').toLowerCase().includes(q)
-      const filtering = q || ui.status !== 'all' || ui.kinds.size !== KINDS.length
-      if (filtering && !promptHit && !shown.length) continue
-
-      const isOpen = open.has(t.id)
-      const st = !t.end ? 'running' : t.reason === 'aborted' ? 'interrupted' : t.reason === 'error' || t.reason === 'refusal' ? 'error' : 'ok'
-      const toggle = () => {
-        if (!ui.turnsTouched) {
-          ui.turnsTouched = true
-          ui.openTurns = new Set(open)
-        }
-        if (ui.openTurns.has(t.id)) ui.openTurns.delete(t.id)
-        else ui.openTurns.add(t.id)
-        render()
+    const isOpen = open.has(key)
+    const st = !t.end ? 'running' : t.reason === 'aborted' ? 'interrupted' : t.reason === 'error' || t.reason === 'refusal' ? 'error' : 'ok'
+    const toggle = () => {
+      if (!ui.turnsTouched) {
+        ui.turnsTouched = true
+        ui.openTurns = new Set(open)
       }
-
-      const head = h('button', { class: 'act-head', type: 'button', 'aria-expanded': String(isOpen), onclick: toggle },
-        h('span', { class: 'act-caret' }),
-        h('span', { class: 'act-n' }, `#${t.n}`),
-        h('span', { class: 'act-main' },
-          statusEl(st),
-          h('span', { class: `act-prompt ${t.prompt ? '' : 'none'}`, title: t.prompt || '' }, t.prompt || T.continuation)),
-        h('span', { class: 'act-stats' },
-          h('span', live(t), fmtDur((t.end ?? t1) - t.start)),
-          h('span', null, `${t.calls} ${T.col.tools.toLowerCase()}`),
-          t.fails ? h('span', { class: 'tx-fail' }, `${t.fails} ${T.col.fails.toLowerCase()}`) : null,
-          h('span', null, `${t.api} ${T.col.req.toLowerCase()}`),
-          h('span', null, `${fmtTok(t.tokIn)} / ${fmtTok(t.tokOut)}`)))
-
-      let body = null
-      if (isOpen) {
-        const byTool = Object.entries(t.byTool).sort((a, b) => b[1] - a[1])
-        const evicted = t.calls - calls.length
-        body = h('div', { class: 'act-body' },
-          byTool.length
-            ? h('div', { class: 'act-summary' },
-              byTool.map(([n, c]) => h('span', { class: 'chip' }, h('b', null, n), `×${c}`)),
-              h('span', { class: 'chip plain' }, `${t.api} ${T.col.req.toLowerCase()} · ${fmtTok(t.tokIn)} ${T.col.inTok.toLowerCase()} / ${fmtTok(t.tokOut)} ${T.col.outTok.toLowerCase()}`))
-            : h('div', { class: 'note' }, T.noTools),
-          evicted > 0 ? h('div', { class: 'note' }, T.earlier(evicted)) : null,
-          shown.length ? callsTable(shown, agents, t) : null)
-      }
-      out.push(h('div', { class: `act ${isOpen ? 'open' : ''}` }, head, body))
+      if (ui.openTurns.has(key)) ui.openTurns.delete(key)
+      else ui.openTurns.add(key)
+      render()
     }
-    return out.length ? out : [empty(T.emptyFiltered)]
+
+    const head = h('button', { class: 'act-head', type: 'button', 'aria-expanded': String(isOpen), onclick: toggle },
+      h('span', { class: 'act-caret' }),
+      h('span', { class: 'act-n' }, `#${t.n}`),
+      h('span', { class: 'act-main' },
+        sess ? sessionChip(sess) : null,
+        statusEl(st),
+        h('span', { class: `act-prompt ${t.prompt ? '' : 'none'}`, title: t.prompt || '' }, t.prompt || T.continuation)),
+      h('span', { class: 'act-stats' },
+        h('span', live(t), fmtDur((t.end ?? t1) - t.start)),
+        h('span', null, `${t.calls} ${T.col.tools.toLowerCase()}`),
+        t.fails ? h('span', { class: 'tx-fail' }, `${t.fails} ${T.col.fails.toLowerCase()}`) : null,
+        h('span', null, `${t.api} ${T.col.req.toLowerCase()}`),
+        hooks.length ? h('span', null, `${hooks.length} ${T.metrics.hooks}`) : null,
+        h('span', null, `${fmtTok(t.tokIn)} / ${fmtTok(t.tokOut)}`)))
+
+    let body = null
+    if (isOpen) {
+      const byTool = Object.entries(t.byTool).sort((a, b) => b[1] - a[1])
+      const evicted = t.calls - calls.length
+      const own = sessions.get(curKey)
+      body = h('div', { class: 'act-body' },
+        byTool.length
+          ? h('div', { class: 'act-summary' },
+            byTool.map(([n, c]) => h('span', { class: 'chip' }, h('b', null, n), `×${c}`)),
+            h('span', { class: 'chip plain' }, `${t.api} ${T.col.req.toLowerCase()} · ${fmtTok(t.tokIn)} ${T.col.inTok.toLowerCase()} / ${fmtTok(t.tokOut)} ${T.col.outTok.toLowerCase()}`))
+          : h('div', { class: 'note' }, T.noTools),
+        evicted > 0 ? h('div', { class: 'note' }, T.earlier(evicted)) : null,
+        shown.length ? callsTable(shown, agents, t) : null,
+        hooksShown.length ? h('div', { class: 'act-hooks-title' }, T.hooksIn(hooks.length)) : null,
+        hooksShown.length ? hooksTable(hooksShown.map((hk) => ({ sess: own, hk })), { turn: t }) : null)
+    }
+    return h('div', { class: `act ${isOpen ? 'open' : ''}` }, head, body)
   }
 
   function callsTable(calls, agents, turn) {
@@ -554,7 +659,7 @@
       rows: calls,
       rowAttrs: (sp) => ({
         class: `${isSelected('span', sp.id) ? 'selected' : ''} ${isFailed(spanState(sp)) ? 'failed' : ''}`,
-        onclick: () => select({ type: 'span', id: sp.id }),
+        onclick: selectNow({ type: 'span', id: sp.id }),
       }),
       cols: [
         { label: T.col.offset, cls: 'r num faint', width: '68px', cell: (sp) => `+${fmtDur(Math.max(0, sp.start - turn.start))}` },
@@ -578,6 +683,185 @@
         { label: T.col.status, width: '112px', cell: (sp) => statusEl(spanState(sp)) },
       ],
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hooks: every classic hook event the mod saw, with what the hooks answered
+  // ---------------------------------------------------------------------------
+
+  // A colour per family of events, from the kinds' palette
+  const HOOK_KIND = {
+    PreToolUse: 'tool', PostToolUse: 'tool', PostToolUseFailure: 'tool', PostToolBatch: 'tool', PermissionRequest: 'tool', PermissionDenied: 'tool',
+    UserPromptSubmit: 'api', UserPromptExpansion: 'api', MessageDisplay: 'api', Stop: 'api', StopFailure: 'api',
+    SubagentStart: 'agent', SubagentStop: 'agent', TaskCreated: 'agent', TaskCompleted: 'agent', TeammateIdle: 'agent',
+    Notification: 'mcp', Elicitation: 'mcp', ElicitationResult: 'mcp',
+  }
+  const hookKind = (ev) => HOOK_KIND[ev] ?? 'web'
+  const hookEl = (ev) => kindEl(hookKind(ev), ev)
+  const hookState = (hk) => (!hk.end ? 'running' : hk.status)
+  const hookFailed = (hk) => ['blocked', 'error', 'interrupted'].includes(hookState(hk))
+  const hooksOf = (d) => (Array.isArray(d?.hooks) ? d.hooks : [])
+
+  // What the hooks answered, in a few words: the decision first, then what else they did
+  function hookResult(hk) {
+    const st = hookState(hk)
+    if (st === 'running' || st === 'error' || st === 'interrupted') return statusEl(st)
+    const o = hk.out ?? {}
+    const O = T.hookOut
+    const head = o.decision === 'deny' ? ['denied', O.deny] : o.block != null ? ['denied', O.block] : o.decision === 'ask' ? ['waiting', O.ask]
+      : o.decision === 'allow' ? ['ok', O.allow] : o.stop ? ['interrupted', O.stop] : null
+    const extra = [
+      o.ctx ? O.ctx(o.ctxCount ?? o.ctx.length) : null, o.rewrote ? O.rewrote : null, o.retry ? O.retry : null, o.title ? O.title : null,
+    ].filter(Boolean)
+    if (!head && !extra.length) return h('span', { class: 'faint' }, O.none)
+    return h('span', { class: 'hook-result' }, head ? h('span', { class: `status st-${head[0]}` }, head[1]) : null,
+      extra.length ? h('span', { class: 'dim' }, extra.join(' · ')) : null)
+  }
+
+  const hookResultText = (hk) => {
+    const o = hk.out ?? {}
+    return [o.decision, o.block != null ? 'block' : null, o.reason, o.block, ...(o.ctx ?? []), o.title].filter(Boolean).join(' ')
+  }
+
+  function hookPasses(hk, q, { status = true, event = true } = {}) {
+    if (event && ui.hookEvent !== 'all' && hk.event !== ui.hookEvent) return false
+    if (status && ui.status === 'running' && hk.end) return false
+    if (status && ui.status === 'failed' && !hookFailed(hk)) return false
+    if (!q) return true
+    return [hk.event, hk.tool, hk.label, hookResultText(hk)].join(' ').toLowerCase().includes(q)
+  }
+
+  const hookTarget = (hk) => [hk.tool, hk.label].filter(Boolean).join(' · ')
+  const hookDur = (hk, t1) => (hk.pieces > 1 ? `${fmtDur((hk.end ?? t1) - hk.start)} · ×${hk.pieces}` : fmtDur((hk.end ?? t1) - hk.start))
+
+  // rows: [{ sess, hk }], newest first. Each row is drawn with its own session, which a view of all of
+  // them names in its own column; inside an activity the time is its offset in that activity
+  function hooksTable(rows, { turn = null, all = false } = {}) {
+    const C = T.hookCol
+    const cell = (fn) => (r) => withSession(r.sess, () => fn(r.hk, r.sess))
+    return dataTable({
+      fit: true,
+      minWidth: all ? '900px' : '760px',
+      rows,
+      rowAttrs: (r) => withSession(r.sess, () => ({
+        class: `${isSelected('hook', r.hk.id) ? 'selected' : ''} ${hookFailed(r.hk) ? 'failed' : ''}`,
+        onclick: selectNow({ type: 'hook', id: r.hk.id }),
+      })),
+      cols: [
+        turn
+          ? { label: T.col.offset, cls: 'r num faint', width: '68px', cell: cell((hk) => `+${fmtDur(Math.max(0, hk.start - turn.start))}`) }
+          : { label: C.time, cls: 'num faint', width: '78px', cell: cell((hk) => fmtClock(hk.start)) },
+        all ? { label: C.session, width: '180px', cell: cell((hk, s) => sessionChip(s)) } : null,
+        { label: C.event, width: '170px', cell: cell((hk) => hookEl(hk.event)) },
+        { label: C.target, cls: 'mono dim', cell: cell((hk) => h('span', { title: hookTarget(hk) }, hookTarget(hk))) },
+        turn ? null : {
+          label: C.activity, cls: 'num dim', width: '76px', hide: 'sm',
+          cell: cell((hk) => {
+            const tn = turnById(hk.turn)
+            return tn ? `#${tn.n}` : '—'
+          }),
+        },
+        { label: T.col.agent, cls: 'dim', width: '110px', hide: 'sm', cell: cell((hk) => agentName(agentsById(), hk.agent ?? 'main')) },
+        { label: T.col.duration, cls: 'r num', width: '86px', cell: cell((hk) => h('span', hk.end || hk.pieces > 1 ? {} : live(hk), hookDur(hk, now()))) },
+        { label: C.result, width: '170px', cell: cell((hk) => hookResult(hk)) },
+      ].filter(Boolean),
+    })
+  }
+
+  function hooksView() {
+    const all = showingAll()
+    const list = all ? sessionList() : [focusedSession()].filter(Boolean)
+    const q = ui.search.trim().toLowerCase()
+    const every = list.flatMap((sess) => hooksOf(sess.data).map((hk) => ({ sess, hk })))
+    if (!every.length) return [empty(T.noHooks)]
+
+    // The events seen, most frequent first, each a filter
+    const byEvent = new Map()
+    for (const { hk } of every) byEvent.set(hk.event, (byEvent.get(hk.event) ?? 0) + 1)
+    const chips = h('div', { class: 'act-summary hook-chips' }, [...byEvent].sort((a, b) => b[1] - a[1]).map(([ev, n]) => h('button', {
+      class: `chip hook-chip${ui.hookEvent === ev ? ' on' : ''}`,
+      type: 'button',
+      style: { '--kc': `var(--k-${hookKind(ev)})` },
+      onclick: () => {
+        ui.hookEvent = ui.hookEvent === ev ? 'all' : ev
+        render()
+      },
+    }, h('b', null, ev), `×${n}`)))
+
+    const rows = every.filter(({ hk }) => hookPasses(hk, q)).sort((a, b) => b.hk.start - a.hk.start)
+    const out = [chips, h('p', { class: 'note' }, T.hookNote)]
+    if (!rows.length) return [...out, empty(T.emptyFiltered)]
+    if (rows.length > HOOKS_SHOWN) out.push(h('p', { class: 'note' }, T.hooksCapped(HOOKS_SHOWN, rows.length)))
+    out.push(hooksTable(rows.slice(0, HOOKS_SHOWN), { all }))
+    return out
+  }
+
+  function hookDetail(hk) {
+    const D = T.detail
+    const HD = T.hookDetail
+    const o = hk.out ?? {}
+    const turn = turnById(hk.turn)
+    const sess = sessions.get(curKey)
+    const body = [kv([
+      [HD.result, hookResult(hk)],
+      [HD.event, hookEl(hk.event)],
+      sess && sessionList().length > 1 ? [HD.session, sessionChip(sess)] : null,
+      [D.agent, agentName(agentsById(), hk.agent ?? 'main')],
+      turn ? [D.activity, `#${turn.n} ${turn.prompt || T.continuation}`] : null,
+      [D.start, fmtClock(hk.start)],
+      hk.end ? [D.end, fmtClock(hk.end)] : null,
+      [D.duration, h('span', { class: 'num', ...(hk.end ? {} : live(hk)) }, fmtDur((hk.end ?? now()) - hk.start))],
+      hk.pieces ? [HD.pieces, h('span', { class: 'num' }, fmtInt(hk.pieces))] : null,
+      o.title ? [HD.title, o.title] : null,
+    ])]
+    if (hookTarget(hk)) body.push(h('h3', null, HD.target), h('pre', null, hookTarget(hk)), h('p', { class: 'note' }, D.argumentNote))
+    const reason = o.reason ?? o.block
+    if (reason) body.push(h('h3', null, HD.reason), h('pre', null, reason))
+    if (o.ctx?.length) body.push(h('h3', null, HD.context), h('pre', null, o.ctx.join('\n')))
+    return { title: `Hook · ${hk.event}`, body }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sessions, side by side: Home when no single one is picked
+  // ---------------------------------------------------------------------------
+
+  function sessionCard(s) {
+    const d = s.data
+    const b = d.session ?? {}
+    const tt = d.totals
+    const color = BADGE_HEX[b.color] ? b.color : 'blue'
+    const cur = d.turns.findLast((x) => !x.end)
+    const nums = [
+      [T.metrics.turns, d.turns.length], [T.metrics.calls, tt.calls], [T.metrics.hooks, tt.hooks ?? hooksOf(d).length],
+      [T.metrics.api, tt.api], [T.metrics.fails, tt.errors + tt.denied],
+    ]
+    return h('button', {
+      class: `sess-card b-${color}${s.alive ? '' : ' ended'}`,
+      type: 'button',
+      onclick: () => {
+        ui.session = s.key
+        remember()
+        render()
+      },
+    },
+    h('span', { class: 'sess-head' },
+      h('span', { class: 'badge-mark' }, b.mark ?? '●'), h('span', { class: 'badge-code' }, b.code ?? ''),
+      h('span', { class: `sess-state${s.alive ? ' on' : ''}` }, s.alive ? T.sessAlive : T.endedTitle)),
+    h('span', { class: 'sess-title' }, sessionName(s)),
+    h('span', { class: 'sess-sub' }, [b.title ? b.project : null, b.model, d.usage?.context ? `${T.context} ${Math.round(d.usage.context.percent ?? 0)}%` : null].filter(Boolean).join(' · ')),
+    h('span', { class: 'sess-now' }, cur ? T.sessBusy(cur.prompt || T.continuation) : T.sessIdle),
+    h('span', { class: 'sess-nums' }, nums.map(([k, v]) => h('span', null, h('b', null, fmtInt(v)), ` ${k}`))))
+  }
+
+  const sessionCards = () => h('div', { class: 'sess-grid' }, sessionList().map(sessionCard))
+
+  function sessionsHome() {
+    const mem = memory.at(-1)
+    return [
+      sessionCards(),
+      sectionTitle(T.memory, mem ? T.memFree(fmtBytes(mem.free)) : null),
+      memory.length > 1 ? memChart() : empty(T.memWaiting),
+    ]
   }
 
   // ---------------------------------------------------------------------------
@@ -605,7 +889,7 @@
         const st = a.id === 'main' ? null : !a.end ? 'running' : a.status
         return {
           class: `${isSelected('agent', a.id) ? 'selected' : ''} ${st && isFailed(st) ? 'failed' : ''}`,
-          onclick: () => select({ type: 'agent', id: a.id }),
+          onclick: selectNow({ type: 'agent', id: a.id }),
         }
       },
       cols: [
@@ -699,7 +983,7 @@
     ]
     out.push(sortableTable('tokens', cols, apiSpans, (sp) => ({
       class: `${isSelected('span', sp.id) ? 'selected' : ''} ${apiNumbers(sp).miss ? 'miss' : ''} ${isFailed(spanState(sp)) ? 'failed' : ''}`,
-      onclick: () => select({ type: 'span', id: sp.id }),
+      onclick: selectNow({ type: 'span', id: sp.id }),
     })))
     return out
   }
@@ -797,7 +1081,7 @@
           [T.col.duration, fmtDur((sp.end ?? now()) - sp.start)],
         ]),
         onmouseleave: hideTip,
-        onclick: () => select({ type: 'span', id: sp.id }),
+        onclick: selectNow({ type: 'span', id: sp.id }),
       }))
     })
     svgEl.append(s('text', { x: left, y: H - 2, class: 'axis-label' }, T.outChart))
@@ -904,6 +1188,7 @@
       axis.append(s('line', { x1: left, x2: W, y1: y, y2: y }), s('text', { x: left - 6, y: y + 3, 'text-anchor': 'end' }, fmtDur(max * f)))
     }
     svgEl.append(axis)
+    const key = curKey
     turns.forEach((t, i) => {
       const hgt = (durs[i] / max) * H
       const color = !t.end ? 'var(--accent)' : t.reason === 'aborted' || t.reason === 'error' || t.reason === 'refusal' ? 'var(--fail)' : 'var(--c-write)'
@@ -920,7 +1205,7 @@
         onclick: () => {
           ui.view = 'activities'
           ui.turnsTouched = true
-          ui.openTurns = new Set([t.id])
+          ui.openTurns = new Set([`${key}|${t.id}`])
           render()
         },
       }))
@@ -1035,7 +1320,7 @@
       body.push(h('h3', null, D.argument), h('pre', null, sp.label || '—'), h('p', { class: 'note' }, D.argumentNote))
     }
     if (sp.child && agents.has(sp.child)) {
-      body.push(h('button', { class: 'link-btn', type: 'button', onclick: () => select({ type: 'agent', id: sp.child }) }, D.openAgent))
+      body.push(h('button', { class: 'link-btn', type: 'button', onclick: selectNow({ type: 'agent', id: sp.child }) }, D.openAgent))
     }
     return { title: `${T.kinds[sp.kind]} · ${sp.name}`, body }
   }
@@ -1070,7 +1355,7 @@
     }, D.inTimeline))
     if (calls.length) {
       body.push(h('h3', null, `${D.agentCalls} (${calls.length})`))
-      body.push(h('table', { class: 'grid' }, h('tbody', null, calls.map((sp) => h('tr', { onclick: () => select({ type: 'span', id: sp.id }) },
+      body.push(h('table', { class: 'grid' }, h('tbody', null, calls.map((sp) => h('tr', { onclick: selectNow({ type: 'span', id: sp.id }) },
         h('td', null, kindEl(sp.kind, sp.name)),
         h('td', { class: 'r num dim', style: { width: '76px' } }, fmtDur((sp.end ?? t1) - sp.start)),
         h('td', { style: { width: '30px' } }, h('span', { class: `status dot-only st-${spanState(sp)}`, title: T.status[spanState(sp)] })))))))
@@ -1078,16 +1363,27 @@
     return { title: agentTitle(a), body }
   }
 
+  function detailContent() {
+    if (!data) return null
+    if (ui.selected?.type === 'span') {
+      const sp = data.spans.find((x) => x.id === ui.selected.id)
+      return sp ? spanDetail(sp) : null
+    }
+    if (ui.selected?.type === 'agent') {
+      const a = data.agents.find((x) => x.id === ui.selected.id)
+      return a ? agentDetail(a) : null
+    }
+    if (ui.selected?.type === 'hook') {
+      const hk = hooksOf(data).find((x) => x.id === ui.selected.id)
+      return hk ? hookDetail(hk) : null
+    }
+    return null
+  }
+
   function renderDetail() {
     const panel = $('detail')
-    let content = null
-    if (data && ui.selected?.type === 'span') {
-      const sp = data.spans.find((x) => x.id === ui.selected.id)
-      if (sp) content = spanDetail(sp)
-    } else if (data && ui.selected?.type === 'agent') {
-      const a = data.agents.find((x) => x.id === ui.selected.id)
-      if (a) content = agentDetail(a)
-    }
+    const sess = ui.selected ? sessions.get(ui.selected.key) : null
+    const content = sess ? withSession(sess, detailContent) : null
     $('scrim').hidden = !content
     if (!content) {
       panel.hidden = true
@@ -1118,10 +1414,12 @@
     const el = $('badge')
     if (!b || !BADGE_SHAPES[b.mark]) {
       el.hidden = true
-      document.title = 'Session Radar'
+      $('top').className = 'top'
+      document.title = showingAll() ? `${T.nSessions(sessionList().length)} · Session Radar` : 'Session Radar'
       return
     }
-    const ended = conn === 'ended' || conn === 'unauthorized'
+    const own = sessions.get(curKey)
+    const ended = conn === 'ended' || conn === 'unauthorized' || own?.alive === false
     const color = BADGE_HEX[b.color] ? b.color : 'blue'
     el.hidden = false
     el.className = `badge b-${color}${ended ? ' ended' : ''}`
@@ -1129,13 +1427,14 @@
     el.replaceChildren(
       h('span', { class: 'badge-mark' }, b.mark),
       h('span', { class: 'badge-code' }, b.code),
+      b.title ? h('span', { class: 'badge-project badge-title' }, b.title) : null,
       b.project ? h('span', { class: 'badge-project' }, b.project) : null,
       b.model ? h('span', { class: 'badge-model' }, b.model) : null,
     )
     $('top').className = `top b-${color}${ended ? ' ended' : ''}`
     document.title = ended
       ? `✕ ${b.code} · ${T.endedTitle} · Session Radar`
-      : `${b.mark} ${b.code}${b.project ? ` · ${b.project}` : ''} · Session Radar`
+      : `${b.mark} ${b.code}${b.title || b.project ? ` · ${b.title || b.project}` : ''} · Session Radar`
     const key = `${b.mark}${color}${ended}`
     if (key !== iconKey) {
       iconKey = key
@@ -1145,13 +1444,51 @@
     }
   }
 
+  // Rebuilt only when the sessions or their names change, so an open dropdown is never replaced
+  let sessionsSig = ''
+  function renderSessionPicker() {
+    const sel = $('session-filter')
+    const list = sessionList()
+    sel.hidden = !list.length
+    const label = (s) => {
+      const b = s.data.session ?? {}
+      return `${b.mark ?? '●'} ${b.code ?? ''} · ${sessionName(s)}${s.alive ? '' : ` (${T.endedTitle})`}`
+    }
+    const sig = JSON.stringify([T.allSessions(list.length), list.map((s) => [s.key, label(s)])])
+    if (sig !== sessionsSig) {
+      sessionsSig = sig
+      sel.title = T.sessionTip
+      sel.replaceChildren(
+        h('option', { value: 'all' }, T.allSessions(list.length)),
+        ...list.map((s) => h('option', { value: s.key }, label(s))))
+    }
+    sel.value = ui.session !== 'all' && sessions.has(ui.session) ? ui.session : 'all'
+  }
+
   function renderHeader() {
+    renderSessionPicker()
     renderIdentity()
     const c = $('conn')
     c.className = `conn ${conn === 'live' ? 'live' : conn === 'stale' || conn === 'reconnecting' ? 'stale' : conn === 'connecting' ? '' : 'down'}`
     $('conn-text').textContent = T.conn[conn]
 
     const m = $('metrics')
+    if (showingAll()) {
+      const list = sessionList()
+      const sum = (fn) => list.reduce((n, s) => n + (fn(s.data) ?? 0), 0)
+      const fails = sum((d) => d.totals.errors + d.totals.denied)
+      const items = [
+        [T.metrics.sessions, `${list.filter((s) => s.alive).length}/${list.length}`],
+        [T.metrics.turns, sum((d) => d.turns.length)],
+        [T.metrics.calls, sum((d) => d.totals.calls)],
+        [T.metrics.hooks, sum((d) => d.totals.hooks ?? hooksOf(d).length)],
+        [T.metrics.api, sum((d) => d.totals.api)],
+        [T.metrics.agents, sum((d) => d.totals.agents)],
+        [T.metrics.fails, fails, fails ? 'tx-fail' : ''],
+      ]
+      m.replaceChildren(...items.map(([k, v, cls]) => h('div', null, h('dt', null, k), h('dd', { class: cls || null }, v))))
+      return
+    }
     if (!data) {
       m.replaceChildren()
       return
@@ -1163,6 +1500,7 @@
       [T.metrics.turns, data.turns.length],
       [T.metrics.calls, t.calls],
       [T.metrics.api, t.api],
+      [T.metrics.hooks, t.hooks ?? hooksOf(data).length],
       [T.metrics.agents, t.agents],
       [T.metrics.mcp, t.mcp],
       [T.metrics.web, t.web],
@@ -1172,13 +1510,19 @@
   }
 
   function renderNav() {
-    const counts = data ? {
+    const list = sessionList()
+    const counts = showingAll() ? {
+      home: list.length,
+      activities: list.reduce((n, s) => n + s.data.turns.length, 0),
+      hooks: list.reduce((n, s) => n + hooksOf(s.data).length, 0),
+    } : data ? {
       home: null,
       activities: data.turns.length,
       insights: data.insightsView ? data.insightsView.findings.length : null,
       timeline: data.spans.length,
       agents: data.agents.length - 1,
       tokens: data.totals.api,
+      hooks: hooksOf(data).length,
     } : {}
     $('nav').replaceChildren(...VIEWS.map((v, i) => h('button', {
       type: 'button',
@@ -1209,8 +1553,9 @@
     const search = $('search')
     search.placeholder = T.search
     $('kinds').hidden = !(v === 'timeline' || v === 'activities')
-    $('statuses').hidden = !(v === 'timeline' || v === 'activities' || v === 'tokens')
+    $('statuses').hidden = !(v === 'timeline' || v === 'activities' || v === 'tokens' || v === 'hooks')
     $('agent-filter').hidden = !(v === 'timeline' || v === 'tokens')
+    $('hook-filter').hidden = v !== 'hooks'
     $('windows').hidden = v !== 'timeline'
 
     segButtons('kinds', KINDS.filter((k) => v !== 'activities' || k !== 'api').map((k) => [k, T.kinds[k], `var(--k-${k})`]),
@@ -1239,7 +1584,19 @@
         ...agents.map((a) => h('option', { value: a.id }, a.id === 'main' ? T.mainSession : agentTitle(a))))
     }
     sel.value = ui.agent
+
+    const hookSel = $('hook-filter')
+    const shown = showingAll() ? sessionList() : [focusedSession()].filter(Boolean)
+    const events = [...new Set(shown.flatMap((s) => hooksOf(s.data).map((hk) => hk.event)))].sort()
+    if (ui.hookEvent !== 'all' && !events.includes(ui.hookEvent)) ui.hookEvent = 'all'
+    const hookSig = JSON.stringify([T.allEvents, events])
+    if (hookSig !== hooksSig) {
+      hooksSig = hookSig
+      hookSel.replaceChildren(h('option', { value: 'all' }, T.allEvents), ...events.map((ev) => h('option', { value: ev }, ev)))
+    }
+    hookSel.value = ui.hookEvent
   }
+  let hooksSig = ''
 
   // ---------------------------------------------------------------------------
   // Render
@@ -1254,8 +1611,10 @@
 
   function render() {
     dirty = false
+    use(focusedSession())
     document.documentElement.lang = T === I18N.pt ? 'pt-BR' : 'en'
-    const version = typeof data?.version === 'string' && /^\d+\.\d+\.\d+$/.test(data.version) ? data.version : ''
+    const vdata = data ?? sessionList()[0]?.data
+    const version = typeof vdata?.version === 'string' && /^\d+\.\d+\.\d+$/.test(vdata.version) ? vdata.version : ''
     $('credit').textContent = version ? `${T.credit} · v${version}` : T.credit
     $('hint').textContent = T.hint
     renderNotifyOn()
@@ -1271,7 +1630,11 @@
     const atBottom = switched || view.scrollHeight - view.scrollTop - view.clientHeight < 8
     const top = switched ? 0 : view.scrollTop
     let content
-    if (!data) content = [empty(conn === 'noToken' || conn === 'unauthorized' || conn === 'ended' ? T.conn[conn] : T.emptyWaiting)]
+    if (showingAll() && !MERGED.includes(ui.view)) content = [h('p', { class: 'note' }, T.pickSession), sessionCards()]
+    else if (showingAll() && ui.view === 'home') content = sessionsHome()
+    else if (showingAll() && ui.view === 'activities') content = activitiesView()
+    else if (ui.view === 'hooks' && (data || showingAll())) content = hooksView()
+    else if (!data) content = [empty(conn === 'noToken' || conn === 'unauthorized' || conn === 'ended' ? T.conn[conn] : T.emptyWaiting)]
     else if (ui.view === 'timeline') content = timelineView()
     else if (ui.view === 'activities') content = activitiesView()
     else if (ui.view === 'insights') content = insightsView()
@@ -1287,15 +1650,16 @@
   // Running items and countdowns move on their own between snapshots
   let ticks = 0
   setInterval(() => {
-    if (!data) return
+    if (!sessions.size) return
     ticks++
     if (conn === 'live' && Date.now() - receivedAt > STALE_MS) {
       conn = 'stale'
       renderHeader()
     }
+    use(focusedSession())
     tickLive()
     if (!canRender()) return
-    const running = data.spans.some((sp) => !sp.end)
+    const running = sessionList().some((s) => s.data.spans.some((sp) => !sp.end))
     const clockBound = (ui.view === 'timeline' && running) || ui.view === 'tokens'
     if (dirty || (clockBound && ticks % 5 === 0)) render()
   }, 1000)
@@ -1350,28 +1714,31 @@
     renderNotifyOn()
   })
 
-  // The first snapshot only says where to start, so opening the page does not replay what came before
-  let lastNotice = null
-  function takeNotices(list) {
+  // The first snapshot of a session only says where to start, so opening the page does not replay
+  // what came before. key -> the newest notice shown
+  const lastNotice = new Map()
+  function takeNotices(sess, list) {
     if (!Array.isArray(list)) return
     const ids = list.map((n) => n?.id).filter(Number.isFinite)
     const newest = ids.length ? Math.max(...ids) : 0
+    const last = lastNotice.get(sess.key)
     // A mod that started over counts from 1 again
-    if (lastNotice === null || newest < lastNotice) {
-      lastNotice = newest
+    if (last === undefined || newest < last) {
+      lastNotice.set(sess.key, newest)
       return
     }
     for (const n of list) {
-      if (!(n?.id > lastNotice) || typeof n.text !== 'string') continue
-      lastNotice = n.id
-      showNotice(n)
+      if (!(n?.id > lastNotice.get(sess.key)) || typeof n.text !== 'string') continue
+      lastNotice.set(sess.key, n.id)
+      showNotice(n, sessions.size > 1 ? sess : null)
     }
   }
 
-  function showNotice(n) {
+  function showNotice(n, sess) {
     const box = $('notices')
+    const from = sess ? `${sess.data.session?.mark ?? ''} ${sess.data.session?.code ?? ''} · ${sessionName(sess)}`.trim() : null
     const el = h('div', { class: 'notice' + (n.kind === 'cache' ? ' notice-cache' : ''), role: 'status', title: T.noticeClose },
-      h('b', null, 'Session Radar'), h('span', null, n.text))
+      h('b', null, from ? `Session Radar · ${from}` : 'Session Radar'), h('span', null, n.text))
     const close = () => el.remove()
     el.addEventListener('click', close)
     box.append(el)
@@ -1379,7 +1746,7 @@
     setTimeout(close, NOTICE_MS)
     if (!document.hidden || !canNotify() || Notification.permission !== 'granted') return
     try {
-      const note = new Notification('Session Radar', { body: n.text, tag: `session-radar-${n.id}` })
+      const note = new Notification(from ? `Session Radar · ${from}` : 'Session Radar', { body: n.text, tag: `session-radar-${sess?.key ?? ''}-${n.id}` })
       note.onclick = () => {
         window.focus()
         note.close()
@@ -1390,22 +1757,39 @@
   }
 
   // A heartbeat carries the same session with a newer clock: the clock is taken, nothing is redrawn
-  let lastSig = ''
   function receive(text) {
-    const next = JSON.parse(text)
-    if (!next) return
+    const { key, alive, snapshot: next } = JSON.parse(text)
+    if (!next || typeof key !== 'string') return
     const { now: _now, exportedAt: _at, ...rest } = next
     const sig = JSON.stringify(rest)
-    const same = sig === lastSig && conn === 'live'
-    lastSig = sig
-    data = next
+    let sess = sessions.get(key)
+    if (!sess) {
+      sess = { key }
+      sessions.set(key, sess)
+    }
+    const same = sig === sess.sig && sess.alive === alive && conn === 'live'
+    Object.assign(sess, { sig, data: next, alive, receivedAt: Date.now(), offset: Date.now() - (next.now ?? Date.now()) })
     receivedAt = Date.now()
-    offset = Date.now() - (data.now ?? Date.now())
-    T = I18N[data.lang] ?? T
+    T = I18N[next.lang] ?? T
     conn = 'live'
     failures = 0
-    takeNotices(next.notices)
+    takeNotices(sess, next.notices)
     if (same) return
+    dirty = true
+    if (canRender()) render()
+  }
+
+  // Which sessions the server holds and which still send: one that ended stays, marked so, until the
+  // server drops it
+  function receiveRoster(text) {
+    const list = JSON.parse(text)?.sessions
+    if (!Array.isArray(list)) return
+    const keys = new Set(list.map((s) => s.key))
+    for (const key of sessions.keys()) if (!keys.has(key)) sessions.delete(key)
+    for (const s of list) {
+      const sess = sessions.get(s.key)
+      if (sess) sess.alive = !!s.alive
+    }
     dirty = true
     if (canRender()) render()
   }
@@ -1419,7 +1803,7 @@
     es.addEventListener('open', () => {
       failures = 0
       if (conn !== 'live') {
-        conn = data ? 'live' : 'connecting'
+        conn = sessions.size ? 'live' : 'connecting'
         renderHeader()
       }
     })
@@ -1428,6 +1812,13 @@
         receive(ev.data)
       } catch {
         // A snapshot that does not parse is skipped; the next one replaces it
+      }
+    })
+    es.addEventListener('sessions', (ev) => {
+      try {
+        receiveRoster(ev.data)
+      } catch {
+        // The next roster replaces it
       }
     })
     // Memory samples from the server: the ones so far on connecting, then one at a time. Only newer
@@ -1446,6 +1837,7 @@
     es.addEventListener('bye', () => {
       es.close()
       conn = 'ended'
+      for (const sess of sessions.values()) sess.alive = false
       render()
     })
     es.addEventListener('error', async () => {
@@ -1460,7 +1852,7 @@
         }
         render()
         if (conn === 'reconnecting') setTimeout(connect, 2000)
-      } else if (++failures > 5) {
+      } else if (++failures > 15) {
         // The server is gone without a goodbye (Claude Code closed or the mod reloaded)
         es.close()
         conn = 'ended'
@@ -1482,6 +1874,20 @@
   })
   $('agent-filter').addEventListener('change', (ev) => {
     ui.agent = ev.target.value
+    render()
+  })
+  $('hook-filter').addEventListener('change', (ev) => {
+    ui.hookEvent = ev.target.value
+    render()
+  })
+  $('session-filter').addEventListener('change', (ev) => {
+    ui.session = ev.target.value
+    // What was picked and filtered belonged to the session shown before
+    ui.selected = null
+    ui.agent = 'all'
+    ui.turnsTouched = false
+    remember()
+    ev.target.blur()
     render()
   })
   $('detail-close').addEventListener('click', () => select(null))
@@ -1519,7 +1925,7 @@
     if (ev.key === '/') {
       ev.preventDefault()
       $('search').focus()
-    } else if (/^[1-6]$/.test(ev.key)) {
+    } else if (/^[1-7]$/.test(ev.key)) {
       ui.view = VIEWS[Number(ev.key) - 1]
       remember()
       render()

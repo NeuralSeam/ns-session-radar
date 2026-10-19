@@ -10,6 +10,9 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import http from 'node:http'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { register } from '../hooks/register.js'
@@ -19,6 +22,10 @@ const SERVER = path.join(ROOT, 'web', 'server.mjs')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // A Windows working directory, with its trailing separator
 const WIN_CWD = ['C:', 'work', 'my-app', ''].join(String.fromCharCode(92))
+// The hub file every session reads, in a folder of the test's own
+const HUB_DIR = mkdtempSync(path.join(os.tmpdir(), 'radar-hub-'))
+const HUB = path.join(HUB_DIR, 'hub.json')
+const readHubFile = () => JSON.parse(readFileSync(HUB, 'utf8'))
 
 const hooks = []
 register((name, a, b) => hooks.push({ name, matcher: b ? a : null, fn: b ?? a }))
@@ -96,7 +103,8 @@ const $ = {
     usage: async () => ({ context: { tokens: 50000, window: 200000, percent: 25 }, cost: { usd: 0.12 }, rateLimits: [] }),
   },
   config: { list: async () => [{ key: 'effortLevel', value: 'medium' }] },
-  env: { get: async () => process.env.OS },
+  env: { get: async (name) => (name === 'SESSION_RADAR_HUB' ? HUB : process.env[name]) },
+  fs: { read: (p) => readFile(p, 'utf8') },
   process: {
     spawn: (req) => spawnImpl(req),
     run: async (argv) => {
@@ -211,8 +219,12 @@ await findKey(await drawBand(), 'dock').onPress()
 assert.equal(findType(await drawPane(), 'Link')?.href, url[0], 'the pane has it again')
 
 // The snapshot arrives with the session's numbers and the usage
-assert.ok(await waitFor(async () => (await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text !== 'null'))
-let state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+// One entry per session that sends: this one alone so far
+const sessionsAt = async (p = port) => JSON.parse((await raw(p, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${p}` } })).text).sessions
+const readState = async () => (await sessionsAt()).find((s) => s.key === 'b1f4c2d0-session-under-test')?.snapshot
+assert.ok(await waitFor(async () => (await sessionsAt()).length === 1))
+let state = await readState()
+assert.equal((await sessionsAt())[0].alive, true)
 assert.equal(state.totals.calls, 2)
 assert.equal(state.totals.mcp, 1)
 assert.equal(state.totals.errors, 1)
@@ -232,6 +244,11 @@ assert.equal(badge.cwd, WIN_CWD)
 assert.equal(badge.model, 'sonnet-5-5')
 // Only the effort's value from the /config rows; insights are off, so the page gets none of them
 assert.equal(badge.effort, 'medium')
+assert.equal(badge.key, 'b1f4c2d0-session-under-test', 'the session id names it on the shared page')
+// Where it listens and its tokens are in the hub file, for the other sessions
+const hub = readHubFile()
+assert.deepEqual([hub.port, hub.viewToken, hub.stopped], [port, viewToken, undefined])
+assert.ok(/^[\w-]{32}$/.test(hub.ingestToken) && hub.ingestToken !== viewToken)
 assert.equal(state.insightsView, null)
 assert.deepEqual(state.notices, [], 'no notifications while they are off')
 // The release, for the page's footer
@@ -249,7 +266,7 @@ assert.deepEqual(Object.keys(state).slice(0, 8), ['tool', 'generator', 'exported
 // A new call reaches the page within a push or two
 await fire('tool.call', { tool: 'Read', file_path: 'README.md' }, async () => ({}))
 assert.ok(await waitFor(async () => {
-  state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+  state = await readState()
   return state.totals.calls === 3
 }, 3000), 'live update')
 
@@ -270,7 +287,7 @@ for (let i = 0; i < 2; i++) await fire('tool.call', { tool: 'Bash', command: 'gi
 findKey(await drawPane(), 'tab-config').onPress()
 await findKey(await drawPane(), 'cfg-insights').onPress()
 assert.ok(await waitFor(async () => {
-  state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+  state = await readState()
   return state.insightsView?.findings?.length > 0
 }, 3000), 'the findings reach the page')
 const denial = state.insightsView.findings.find((f) => f.rule === 'denied-repeated')
@@ -286,7 +303,7 @@ await findKey(await drawPane(), 'cfg-notifyDone').onPress()
 await fire('turn.start', { turnId: 't2', text: 'secret prompt' })
 await fire('turn.complete', { turnId: 't2', durationMs: 45_000 })
 assert.ok(await waitFor(async () => {
-  state = JSON.parse((await raw(port, { path: `/api/state?t=${viewToken}`, headers: { host: `127.0.0.1:${port}` } })).text)
+  state = await readState()
   return state.notices?.length === 1
 }, 3000), 'the notification reaches the page')
 const [notice] = state.notices
@@ -330,11 +347,63 @@ const again = await fire('command.run', { command: 'radar-web', args: '' })
 assert.ok(again.text.includes(url[0]), 'the same server answers')
 assert.equal(children.length, 1)
 
-// Stop: the child exits, nothing is left listening, the pane drops the link
+// ---------------------------------------------------------------------------
+// A second session of the same person joins the same page, without /radar-web of its own
+// ---------------------------------------------------------------------------
+
+const second = []
+;(await import('../hooks/register.js?second')).register((name, a, b) => second.push({ name, matcher: b ? a : null, fn: b ?? a }))
+const statuses2 = []
+const $2 = { ...$, ui: { ...$.ui, status: (text) => statuses2.push(text) }, session: { ...$.session, id: async () => 'c7e9a1f3-second-session' } }
+const fire2 = (name, ev, next = async (e) => e) => second.find((x) => x.name === name && matches(x, ev)).fn($2, ev, next)
+await fire2('session.start', { cwd: '/work/other-app' })
+await fire2('turn.start', { turnId: 's1', text: 'in another terminal' })
+await fire2('tool.call', { tool: 'Glob', pattern: '*.ts' }, async () => ({}))
+await fire2('classic.*', { hook_event_name: 'Stop', session_title: 'Port the parser' }, Object.assign(async () => ({}), { event: 'classic.Stop' }))
+assert.ok(await waitFor(async () => (await sessionsAt()).length === 2, 4000), 'the second session joins on its own')
+let both = await sessionsAt()
+const other = both.find((s) => s.key === 'c7e9a1f3-second-session')
+assert.ok(other.alive)
+assert.equal(other.snapshot.session.title, 'Port the parser', 'named by the title Claude Code gave it')
+assert.equal(other.snapshot.session.project, 'other-app')
+assert.equal(other.snapshot.hooks[0].event, 'Stop')
+assert.notEqual(other.snapshot.session.code, badge.code, 'each session its own badge')
+assert.equal(children.length, 1, 'joining starts no server')
+assert.ok(statuses2.at(-1)?.includes('radar'), 'its badge shows under its prompt too')
+// The page's stream names both, then each one's snapshot
+const roster = await events(port, viewToken, (fs) => fs.filter((x) => x.ev === 'state').length >= 2)
+assert.equal(roster[0].ev, 'sessions')
+assert.deepEqual(roster[0].data.sessions.map((s) => s.key).sort(), ['b1f4c2d0-session-under-test', 'c7e9a1f3-second-session'])
+assert.ok(roster.filter((x) => x.ev === 'state').every((x) => typeof x.data.key === 'string' && x.data.snapshot.tool === 'session-radar'))
+
+// The session that started the server goes away: another starts it again on the same port with the
+// same tokens, so the page's address keeps working
+children[0].kill()
+assert.ok(await waitFor(() => exited(children[0])))
+assert.ok(await waitFor(async () => {
+  try {
+    return (await sessionsAt()).length === 2
+  } catch {
+    return false
+  }
+}, 15000), 'the hub comes back on the same address')
+assert.equal(readHubFile().port, port)
+assert.equal(readHubFile().viewToken, viewToken)
+assert.ok(children.length >= 2, 'a new server was started')
+
+// A session that ends leaves the page, shown as ended, the others stay
+await fire2('session.end', { reason: 'prompt_input_exit' })
+both = await sessionsAt()
+assert.equal(both.find((s) => s.key === 'c7e9a1f3-second-session').alive, false)
+assert.equal(both.find((s) => s.key === 'b1f4c2d0-session-under-test').alive, true)
+
+// Stop: the server exits for every session, the hub says so, nothing is left listening, the pane
+// drops the link
 const stopped = await fire('command.run', { command: 'radar-web', args: 'stop' })
 assert.match(stopped.text, /stopped/)
 assert.equal(statuses.at(-1), undefined, 'the badge leaves the prompt with the view')
-assert.ok(await waitFor(() => exited(children[0])), 'the server process exited')
+assert.ok(await waitFor(() => children.every(exited)), 'the server process exited')
+assert.equal(readHubFile().stopped, true, 'the hub is marked stopped, so no session starts it again')
 await assert.rejects(raw(port, { headers: H }), 'nothing listens on the port any more')
 assert.equal(findType(await drawPane(), 'Link'), undefined)
 assert.match((await fire('command.run', { command: 'radar-web', args: 'stop' })).text, /not running/)
@@ -362,6 +431,13 @@ assert.match(failed.text, /Node\.js/)
 await fire('tool.call', { tool: 'Grep', pattern: 'x' }, async () => ({}))
 assert.ok(findKey(await drawPane(), 'tab-home'), 'the pane still draws')
 
+// The second session, which had used the view, does not start it again after the stop, however long
+// it keeps looking
+await fire2('session.start', { cwd: '/work/other-app' })
+await sleep(6500)
+await assert.rejects(raw(port, { headers: { host: `127.0.0.1:${port}` } }), 'still nothing listens')
+
 for (const id of timers) clearInterval(id)
 for (const c of children) if (!exited(c)) c.kill()
+rmSync(HUB_DIR, { recursive: true, force: true })
 console.log('session-radar web view: all checks passed')

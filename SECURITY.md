@@ -14,6 +14,9 @@ Every hook below receives the event as Claude Code raises it, so the mod sees:
   commands and file paths;
 - the token counts of every request to the model;
 - when turns and subagents start and end, and the text each turn starts with;
+- every classic hook event (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `Notification` and
+  the rest), whether or not a hook of yours is configured for it, with what the hooks beneath the
+  radar answered, and the session's title when Claude Code hands it to the hooks;
 - context use, cost and plan limits from `$.session.usage()`;
 - the session's model, and the effort level when `/config` lists it.
 
@@ -28,7 +31,12 @@ the subagent when there is no description.
 In memory, for the current conversation: for each tool call, its name and its main argument cut to
 one line of at most 120 characters, plus timings and status; for each model request, its model and
 token counts; for each prompt you send, its first 120 characters on one line, plus timings and
-counts. At most 500 calls and 200 prompts; older ones are dropped. All of it is gone when the
+counts; for each hook event, its name, the tool or occasion it is about (the same 120-character
+line as a call's argument, or a field such as `SessionStart`'s `source` or a `Notification`'s
+type and message), timings, and what the hooks answered: the decision, its reason, and the first
+three `additionalContext` notes, each cut to one line of 120 characters. Never the prompt a
+`UserPromptSubmit` carries, a message, a tool's output or Claude's reply. A message shown in many
+pieces is one record. At most 500 calls, 500 hook events and 200 prompts; older ones are dropped. All of it is gone when the
 session ends, or on `/clear`, `/resume`, `/branch`, or the `x` key in the pane.
 
 A copy of the same record is handed to Claude Code's session state (`$.state`, key
@@ -64,42 +72,55 @@ same list from the code, under `calls:`.
 | `$.state.get`, `$.state.set` | Keeps a copy of what the radar recorded in the session's state, so a reload of the mod does not lose it; read once, when the reloaded mod starts |
 | `$.ui.toast` | Says where an export went, and that the history was deleted; shows a notification you turned on where your notification channel shows no text |
 | `$.ui.status` | Shows the session's badge (`▲ radar K7QF`) under the prompt while the browser view runs, or always if you turn that on in Config |
-| `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. The id itself is not kept or sent |
+| `$.session.id` | When the session starts, to work out its badge: a four-letter code and a mark, a hash of the id. While the browser view runs, the id also names the session on the shared page, sent only to the server on `127.0.0.1` |
 | `$.session.model` | Names the model on the Home tab, and beside the badge on the page while the browser view runs |
 | `$.config.list` | While the Home tab is drawn or the browser view runs, at most every 5 seconds, to find the `/config` row that holds the effort level. The session API does not report it. Only that row's value is kept, in memory; the other rows are not read further, kept or sent |
 | `$.ui.notify` | The notifications you turn on in Config: an activity that ended, a cache about to expire. Off by default. The text holds numbers only: never a prompt or an argument. The mod reads whether a channel showed it, to fall back to a toast |
 | `$.clock.every` | Redraws once a second while something is running or the pane is open, and checks whether the cache warning is due |
 | `$.session.usage` | Reads context, cost and plan limits for the Home tab and the browser view; with insights on, also when an activity ends, to keep the highest context use |
-| `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names |
+| `$.fs.read` | Reads the project's `.mcp.json`, **only** while insights are on, for the server names; and the hub file (below), every 5 seconds while the session has no browser view, to join one another session started |
 | `$.fs.write` | Writes the export file and the `.gitignore` of its folder, **only** when you run `/radar-export` or press `e`, or, if you turn on `Save the export automatically` in Config, when an activity ends |
 | `$.store.get`, `$.store.set` | Reads the language, the settings and, with insights on, the history when the session starts; writes the language when you change it, the settings when you change one, and the history when an activity or the session ends while insights are on |
 | `$.store.delete` | Removes the history when you press `Delete the stored history` |
-| `$.process.spawn` | Starts `node web/server.mjs`, **only** when you run `/radar-web` or press `w` |
-| `$.http.fetch` | Sends the snapshot to that server on `127.0.0.1`, and asks it to stop; never any other address |
+| `$.process.spawn` | Starts `node web/server.mjs` when you run `/radar-web` or press `w`; and again, on the same port, in a session that has used the view, when the server it was sending to went away without `/radar-web stop` |
+| `$.http.fetch` | Sends the snapshot to that server on `127.0.0.1`, checks a server named by the hub file is the radar's, says the session left, and asks it to stop; never any other address |
 | `$.process.run`, `$.env.get` (`OS`) | Opens the page in your default browser: `rundll32 url.dll,FileProtocolHandler` on Windows, else `xdg-open` or `open` |
+| `$.env.get` (`SESSION_RADAR_HUB`, `CLAUDE_CONFIG_DIR`, `USERPROFILE`, `HOME`) | Finds the hub file, under your Claude Code configuration directory |
 | `$.clock.after` | Gives up on the server if it has not started within 10 seconds |
 
 It does **not** call `$.model`, `$.mcp`, `$.prompt` or `$.settings`, and reads no environment
-variable but `OS`. It does not read your settings files: `$.settings` would hand over their `env`
+variable but those named above. It does not read your settings files: `$.settings` would hand over their `env`
 too. It never denies, rewrites or answers a tool call, a prompt or a request: every hook
 passes the event on unchanged and returns what Claude Code returned.
 
 Events it hooks: `session.start`, `session.end`, `command.run`, `ui.close`, `tool.call`,
-`agent.spawn`, `turn.start`, `turn.step`, `turn.complete`, `ui.render`.
+`agent.spawn`, `turn.start`, `turn.step`, `turn.complete`, `ui.render`, and `classic.*` (every
+classic hook event, only to record it: the answer of the hooks beneath is handed on as it came).
 
 ## The browser view
 
 `web/server.mjs` runs only after `/radar-web` or `w`, as a child of Claude Code. It listens on
-`127.0.0.1` on a port the system picks, never on another interface. It makes two random tokens and
+`127.0.0.1` on a port the system picks, never on another interface.
+
+Every Claude Code session of yours on the machine shares one server. Where it listens and its two
+tokens go to the hub file, `session-radar/hub.json` under your Claude Code configuration directory
+(`~/.claude`, or `CLAUDE_CONFIG_DIR`), written readable by your user alone. Each session with the
+radar reads it every 5 seconds and, when a server that knows its ingest token answers there, sends
+its snapshot too, so the page shows every session, picked one at a time in its header or all
+together. When the session whose child the server is goes away, the next session to notice starts
+another on the same port with the same tokens, so an open page carries on. `/radar-web stop` marks
+the hub stopped, and no session starts it again until someone runs `/radar-web`. Anyone who can
+read that file can read and send to the page, as anyone who can read the URL could already. It makes two random tokens and
 tells them only to the mod, on its standard output: one to read the data (it is in the URL the
 browser opens), one to send data and to stop the server (the mod alone has it). Every request whose
 `Host` is not `127.0.0.1:<port>` or `localhost:<port>` is refused, which defeats DNS rebinding, and
 so is any request carrying another site's `Origin`. The page is static, served with a
 `Content-Security-Policy` that allows nothing but itself, and draws every value as text.
 
-It keeps the last snapshot in memory and nothing on disk. The snapshot holds what
-[What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, the
-folder it runs in, its model and effort level, so the page can tell parallel sessions apart, and,
+It keeps the last snapshot of each session in memory, an ended one for 30 minutes, and nothing on
+disk but the hub file. A snapshot holds what
+[What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, id and
+title, the folder it runs in, its model and effort level, so the page can tell parallel sessions apart, and,
 while insights are on, the findings and comparisons as the Insights tab words them, and the last 20
 notifications you turned on, with the same text. Anyone who has
 the URL, on this machine, can read it while the server runs; treat the URL like the export file.
@@ -113,7 +134,7 @@ only after you press its button and your browser asks you, as system notificatio
 part of the page: it loads nothing and reports nothing, and its link opens neuralseam.cloud in a new
 tab, without a referrer, only when you click it. The server stops on
 `/radar-web stop`, when the mod is unloaded or Claude Code exits, and on its own after 30 seconds
-without a snapshot from the mod.
+without a snapshot from any session.
 
 ## The AI review skill
 

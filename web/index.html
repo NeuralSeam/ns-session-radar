@@ -13,6 +13,7 @@
   <div class="app">
     <header class="top" id="top">
       <div class="brand">Session Radar</div>
+      <select class="session-select" id="session-filter" hidden></select>
       <div class="badge" id="badge" hidden></div>
       <div class="conn" id="conn"><span class="dot"></span><span id="conn-text"></span></div>
       <dl class="metrics" id="metrics"></dl>
@@ -28,6 +29,7 @@
           <div class="seg" id="kinds"></div>
           <div class="seg" id="statuses"></div>
           <select id="agent-filter"></select>
+          <select id="hook-filter" hidden></select>
           <div class="seg" id="windows"></div>
         </div>
       </div>
