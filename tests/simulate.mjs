@@ -657,8 +657,8 @@ const classic = (event, ev, answer = {}) => glob.fn($, ev, Object.assign(async (
 const ctx = { session_id: 'sim-session-1', transcript_path: '/home/u/.claude/projects/x/sim-session-1.jsonl', cwd: '/work/app' }
 
 const started = await classic('SessionStart', { ...ctx, hook_event_name: 'SessionStart', source: 'startup', session_title: 'Fix the login' },
-  { additionalContext: ['Open http://localhost:7777/setup', 'second note'] })
-assert.deepEqual(started.additionalContext, ['Open http://localhost:7777/setup', 'second note'], 'the answer is handed on as it came')
+  { additionalContext: ['Run npm install first', 'second note'] })
+assert.deepEqual(started.additionalContext, ['Run npm install first', 'second note'], 'the answer is handed on as it came')
 // The prompt's hook runs before its activity starts, and joins it once it does
 await classic('UserPromptSubmit', { ...ctx, hook_event_name: 'UserPromptSubmit', prompt: 'the secret prompt text', source: 'user', session_title: 'Fix the login' })
 await fireThird('turn.start', { turnId: 'h1', text: 'the secret prompt text' })
@@ -678,7 +678,7 @@ assert.equal(hooked.totals.hookBlocks, 2)
 const [ss] = byEvent('SessionStart')
 assert.equal(ss.label, 'startup')
 assert.equal(ss.turn, null, 'before any activity')
-assert.deepEqual(ss.out.ctx, ['Open http://localhost:7777/setup', 'second note'])
+assert.deepEqual(ss.out.ctx, ['Run npm install first', 'second note'])
 assert.ok(ss.end >= ss.start && ss.status === 'ok')
 const turn = hooked.turns.find((x) => x.id === 'h1')
 const [ups] = byEvent('UserPromptSubmit')
