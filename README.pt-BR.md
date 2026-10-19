@@ -104,7 +104,9 @@ do sistema.
   como notificação do sistema, depois de você clicar em *Ativar notificações do navegador* no
   rodapé e permitir.
 
-No navegador, `1` a `6` trocam a visão; as três primeiras são as mesmas do painel. Abaixo da
+No navegador, `1` a `8` trocam a visão; as três primeiras são as mesmas do painel. O seletor no
+cabeçalho escolhe a sessão que a página mostra, ou todas (veja [Várias sessões ao mesmo
+tempo](#várias-sessões-ao-mesmo-tempo)). Abaixo da
 navegação fica um anúncio, marcado como tal: hoje o do próprio Neural Seam, para o Neural Seam
 Premium. Ele faz parte da página como o resto: nada é carregado para mostrá-lo e ninguém é avisado de
 que foi mostrado; só clicar nele abre neuralseam.cloud numa aba nova.
@@ -122,6 +124,16 @@ que foi mostrado; só clicar nele abre neuralseam.cloud numa aba nova.
   de entrada que o cache não serviu, cobrados pelo preço cheio; `Cache↓` é o que foi lido do cache e
   `Cache↑` o que foi gravado nele; `Prompt` é a requisição inteira e `Acerto` a parte que veio do
   cache. Linha destacada indica provável perda de cache.
+- **Hooks:** todo evento de hook que o Claude Code dispara (`PreToolUse`, `PostToolUse`, `Stop`,
+  `SessionStart`, `Notification` e os demais), tenha você um hook configurado para ele ou não:
+  quando disparou, a ferramenta ou ocasião, a atividade e o agente, quanto os hooks levaram e o que
+  responderam. `permitiu`, `perguntou` e `negou` são a decisão de um hook de `PreToolUse`,
+  `bloqueou` um hook que barrou o evento, `+N contexto` texto que um hook entregou ao modelo,
+  `sem ação` um evento a que nenhum hook respondeu. Filtre por evento, estado ou texto; clique num
+  para ver o motivo e o contexto. Cada atividade também lista os próprios hooks. Onde uma organização
+  gerencia o Claude Code, os eventos de hook só chegam aos plugins listados nas configurações
+  gerenciadas; ali, esta visão fica vazia a menos que o Session Radar esteja entre eles.
+- **Perguntas:** respostas às dúvidas comuns sobre o radar e a página, filtradas pela busca.
 
 Sem Node, ou sem navegador na mesma máquina (SSH puro, alguns containers), a linha do tempo, os
 agentes e os tokens continuam no export (`/radar-export`).
@@ -142,6 +154,21 @@ terminal da sessão (`▲ radar K7QF`), e o mesmo crachá aparece na página:
 A linha de status do painel também começa com o crachá. Para mantê-lo abaixo do prompt mesmo com o
 navegador fechado, ligue *Sempre mostrar o crachá desta sessão* em Config.
 
+**Todas as sessões numa página.** Toda sessão sua na máquina compartilha um único servidor. Rode
+`/radar-web` em qualquer uma: as outras encontram a página sozinhas em uns 5 segundos, e o crachá
+delas aparece abaixo do prompt. O seletor no cabeçalho lista as sessões pelo nome, o título que o
+Claude Code dá à sessão (o do `/rename`, ou o que ele criou), ou então a pasta do projeto:
+
+- escolha uma, e todas as visões mostram aquela sessão;
+- escolha `Todas as sessões`, e o Início mostra um card por sessão, enquanto Atividades e Hooks
+  juntam todas, dizendo de qual sessão é cada linha. Tempo, Agentes, Tokens e Insights pedem que
+  você escolha uma.
+
+Uma sessão que fecha, ou passa 20 segundos sem enviar, fica marcada como encerrada e continua na
+página por 30 minutos. Quando a sessão cujo terminal iniciou o servidor fecha, outra o inicia de
+novo no mesmo endereço, e a página aberta continua. `/radar-web stop` encerra a página para todas
+as sessões, e nenhuma a reabre até alguém rodar `/radar-web`.
+
 ## Análise com IA
 
 O plugin traz a skill `/session-radar:radar-review`. Exporte (`e`), ou ligue *Salvar o export
@@ -157,13 +184,14 @@ aplica nada sem perguntar. **Usa tokens** da sessão atual; o mod continua sem c
 O Claude Code não desenha uma página web dentro do terminal, então a visão completa abre no seu
 navegador. Aperte `w` no painel (o `/radar` já abre com o foco nele) ou rode `/radar-web`: o mod
 inicia um servidor pequeno (`web/server.mjs`, Node 20+ no `PATH`, sem dependências) e o navegador
-abre sozinho. São seis visões (veja acima), com busca, filtros, tabelas ordenáveis, gráficos e um
+abre sozinho. São oito visões (veja acima), com busca, filtros, tabelas ordenáveis, gráficos e um
 painel de detalhes. A página só lê: Config e `marcar aplicado` ficam no painel.
 
 O servidor escuta só em `127.0.0.1`, em porta escolhida pelo sistema, exige um token aleatório e
-não carrega nada de fora. Guarda em memória só o último envio do mod e os últimos 10 minutos de
-leituras de memória. Ele termina com `/radar-web stop`, quando o Claude Code fecha, e sozinho
-30 segundos depois que o mod para de enviar. O `w` funciona com o painel em foco, não enquanto você
+não carrega nada de fora. A porta e os dois tokens ficam em `session-radar/hub.json`, na pasta de
+configuração do Claude Code, legível só pelo seu usuário, para as suas outras sessões o acharem.
+Guarda em memória só o último envio de cada sessão e os últimos 10 minutos de leituras de memória.
+Ele termina com `/radar-web stop`, e sozinho 30 segundos depois que nenhuma sessão envia mais. O `w` funciona com o painel em foco, não enquanto você
 digita no prompt. Sem Node, o `/radar-web` avisa e o resto continua funcionando.
 
 ## Desinstalar

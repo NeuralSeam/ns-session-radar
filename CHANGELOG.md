@@ -8,6 +8,32 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+### Added
+
+- **Every hook, in the browser.** A Hooks view (`7`) lists every classic hook event Claude Code
+  raises (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `Notification` and the rest), whether
+  or not a hook of yours is configured for it: when it fired, the tool or occasion, the activity,
+  how long the hooks took and what they answered (allowed, asked, denied, blocked, added context).
+  Filter by event, status or text; each one opens with its reason and context. Each activity also
+  lists its own hooks. The export gains a `hooks` field after the existing ones. Where an
+  organization manages Claude Code, hook events reach only the plugins its managed settings list,
+  so there the view stays empty unless Session Radar is one of them.
+- **All your sessions on one page.** With four Claude Code sessions open, `/radar-web` in any of
+  them shows all four: a picker in the header lists them by name (the title Claude Code gives the
+  session, or its folder) to see one, or all together. Home then shows a card per session, and
+  Activities and Hooks merge them. The other sessions join on their own, and when the session that
+  started the page closes another takes over on the same address. `/radar-web stop` ends it for all.
+- **Q&A in the browser view.** A view in the sidebar (`8`) answers the common questions about the
+  radar and the page: opening it, sessions and their names, what each hook result means, the other
+  views and privacy. In English and Portuguese, filtered by the search, nothing loaded from
+  elsewhere.
+
+### Security
+
+- The browser view's port and tokens are kept in `session-radar/hub.json` under your Claude Code
+  configuration directory, readable by your user alone, so your other sessions can join it. See
+  [SECURITY.md](./SECURITY.md#the-browser-view).
+
 ## [0.7.1] - 2026-10-17
 
 ### Changed

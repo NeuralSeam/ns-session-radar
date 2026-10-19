@@ -22,6 +22,7 @@ import { analyze, summarize as sessionRecord, upsertHistory, compareApplied, TTL
 const PANE = 'session-radar'
 const MAX_SPANS = 500
 const MAX_TURNS = 200
+const MAX_HOOKS = 500
 const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 // The release, shown in the credit line and on the page. It must match .claude-plugin/plugin.json;
@@ -31,6 +32,10 @@ const LANGS = ['auto', 'pt', 'en']
 const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
 const WEB_START_MS = 10_000
+// How often a session without the browser view looks for one another session started, and how many
+// failed sends in a row make it look for the server again
+const HUB_JOIN_MS = 5000
+const HUB_FAILS = 2
 const AI_REVIEW = '/session-radar:radar-review'
 const EFFORT_MS = 5000
 const CLEAR_CONFIRM_MS = 3000
@@ -450,6 +455,10 @@ let hist = null
 let mcpConfigured = []
 let histWrite = Promise.resolve()
 let badge = makeBadge(null)
+// The session's id, which names it on the shared browser view, and its title as Claude Code hands it
+// to the hooks (the /rename one, or the one it gave the conversation)
+let sessionKey = null
+let sessionTitle = null
 
 // What the radar recorded is also handed to Claude Code, which holds it for the session, so a reload
 // of the mod (an update, /reload-plugins, a hot reload while developing it) carries on from it
@@ -466,7 +475,7 @@ function saveState($) {
   if (!restoreDone) return saving
   saveDirty = false
   lastSave = Date.now()
-  const value = { v: 1, savedAt: lastSave, seq, exportRoot, S: { ...S, agents: [...S.agents.values()] } }
+  const value = { v: 1, savedAt: lastSave, seq, exportRoot, title: sessionTitle, S: { ...S, agents: [...S.agents.values()] } }
   saving = saving.then(() => $.state.set(SAVED, value)).catch(() => {
     saveDirty = true
   })
@@ -484,6 +493,7 @@ async function restoreState($) {
   }
   if (saved?.v !== 1 || !Array.isArray(saved.S?.spans) || !Array.isArray(saved.S.agents)) return
   if (typeof saved.exportRoot === 'string') exportRoot = saved.exportRoot
+  if (typeof saved.title === 'string') sessionTitle = saved.title
   const base = fresh()
   S = {
     ...base,
@@ -493,7 +503,8 @@ async function restoreState($) {
   }
   // The calls still running when the old copy went away end with it: their outcome never reaches
   // this one. Subagents stay open, since their end is reported to whichever copy is loaded.
-  for (const s of S.spans) {
+  if (!Array.isArray(S.hooks)) S.hooks = []
+  for (const s of [...S.spans, ...S.hooks]) {
     if (s.end) continue
     s.end = saved.savedAt ?? Date.now()
     s.status = 'interrupted'
@@ -511,10 +522,12 @@ function fresh() {
     agents: new Map([['main', newAgent('main', { type: 'main', label: 'main', parent: null })]]),
     turns: [],
     turnSeq: 0,
+    hooks: [],
+    hookSeq: 0,
     ttlSeen: false,
     totals: {
       calls: 0, mcp: 0, web: 0, agents: 0, api: 0, errors: 0, denied: 0,
-      tokIn: 0, tokOut: 0, cacheRead: 0, cacheWrite: 0,
+      tokIn: 0, tokOut: 0, cacheRead: 0, cacheWrite: 0, hooks: 0, hookBlocks: 0,
     },
   }
 }
@@ -593,6 +606,89 @@ function closeSpan(span, status) {
   span.status = status
   if (status === 'error') S.totals.errors++
   if (status === 'denied') S.totals.denied++
+}
+
+// ---------------------------------------------------------------------------
+// Hooks: every classic hook event Claude Code raises (PreToolUse, Stop, SessionStart, ...), whether
+// or not a settings hook answers it. Each keeps when it fired, how long the hooks beneath the radar
+// took, and what they answered, as one line of at most MAX_LABEL characters: never a prompt, a
+// message or a tool's output.
+// ---------------------------------------------------------------------------
+
+// These come before the prompt's activity starts, and join it once it does
+const PRE_TURN = new Set(['UserPromptSubmit', 'UserPromptExpansion'])
+const line = (v) => (typeof v === 'string' && v ? trunc(oneLine(v), MAX_LABEL) : null)
+
+// What the event is about: the tool for a tool's events, else the field that names its occasion
+function hookTarget(event, e) {
+  if (event === 'PreToolUse') return { tool: prettyName(e.tool ?? e.tool_name ?? '?'), label: summarize(e.tool_input ?? e) }
+  if (typeof e.tool_name === 'string') {
+    const input = e.tool_input && typeof e.tool_input === 'object' ? e.tool_input : {}
+    return { tool: prettyName(e.tool_name), label: summarize(input) }
+  }
+  const pick = {
+    SessionStart: e.source, SessionEnd: e.reason, Setup: e.trigger, PreCompact: e.trigger, PostCompact: e.trigger,
+    UserPromptSubmit: e.source, UserPromptExpansion: e.command_name,
+    Notification: [e.notification_type, e.message].filter(Boolean).join(': '),
+    SubagentStart: e.agent_type, SubagentStop: e.agent_type, TaskCreated: e.task_subject, TaskCompleted: e.task_subject,
+    TeammateIdle: e.teammate_name, Elicitation: e.mcp_server_name, ElicitationResult: [e.mcp_server_name, e.action].filter(Boolean).join(' · '),
+    ConfigChange: [e.source, e.file_path].filter(Boolean).join(' · '), CwdChanged: e.new_cwd, DirectoryAdded: e.directory,
+    FileChanged: [e.event, e.file_path].filter(Boolean).join(' '), InstructionsLoaded: [e.memory_type, e.file_path].filter(Boolean).join(' · '),
+    PreModelSwitch: e.from_model && `${e.from_model} → ${e.to_model}`, PostModelSwitch: e.from_model && `${e.from_model} → ${e.to_model}`,
+    WorktreeCreate: e.name, WorktreeRemove: e.worktree_path, StopFailure: typeof e.error === 'string' ? e.error : null,
+    PostToolBatch: Array.isArray(e.tool_calls) ? plural(e.tool_calls.length, 'call', 'calls') : null,
+  }
+  return { tool: null, label: line(pick[event]) ?? '' }
+}
+
+// What the hooks beneath answered, as far as the radar can tell from the folded answer
+function hookOutcome(r) {
+  if (!r || typeof r !== 'object') return {}
+  const ctx = Array.isArray(r.additionalContext) ? r.additionalContext.map(line).filter(Boolean) : []
+  return clean({
+    decision: r.allow ? 'allow' : typeof r.ask === 'string' ? 'ask' : typeof r.deny === 'string' ? 'deny' : null,
+    block: typeof r.block === 'string' ? line(r.block) ?? '' : null,
+    reason: line(r.deny ?? r.ask ?? r.stopReason),
+    stop: r.preventContinuation ? true : null,
+    ctx: ctx.length ? ctx.slice(0, 3) : null,
+    ctxCount: ctx.length > 3 ? ctx.length : null,
+    rewrote: r.updatedInput || r.updatedToolOutput || r.updatedMCPToolOutput || r.displayContent || r.worktreePath ? true : null,
+    retry: r.retry ? true : null,
+    title: line(r.sessionTitle),
+  })
+}
+
+function openHook(event, e) {
+  const agent = e.agentId ?? e.agent_id ?? 'main'
+  const pending = PRE_TURN.has(event) && agent === 'main'
+  const turn = pending ? null : agent !== 'main' ? turnOfAgent(agent) : S.turns.findLast((t) => !t.end) ?? null
+  const { tool, label } = hookTarget(event, e)
+  const hook = { id: ++S.hookSeq, event, tool, label, agent, turn: turn?.id ?? null, start: Date.now(), end: null, status: 'running' }
+  if (pending) hook.pending = true
+  S.hooks.push(hook)
+  if (S.hooks.length > MAX_HOOKS) {
+    const i = S.hooks.findIndex((h) => h.end)
+    if (i >= 0) S.hooks.splice(i, 1)
+  }
+  S.totals.hooks++
+  if (turn) turn.hooks = (turn.hooks ?? 0) + 1
+  return hook
+}
+
+function closeHook(hook, status, out) {
+  hook.end = Date.now()
+  hook.status = status
+  if (out && Object.keys(out).length) hook.out = out
+  if (status === 'blocked') S.totals.hookBlocks++
+}
+
+// The title Claude Code gives the session reaches the hooks; a hook may also set it
+function takeTitle(text) {
+  const t = line(text)
+  if (!t || t === sessionTitle) return
+  sessionTitle = t
+  saveDirty = true
+  markWebDirty()
 }
 
 // ---------------------------------------------------------------------------
@@ -681,6 +777,7 @@ function snapshot() {
     turns: S.turns,
     agents: [...S.agents.values()],
     spans: S.spans,
+    hooks: S.hooks,
   }
   // Added after the existing fields, and only when the person turned insights on
   if (cfg.insights) {
@@ -924,10 +1021,69 @@ function autoExport($) {
 // Web view. The mod has no server of its own: it starts web/server.mjs as a child, which dies with
 // the module, and sends it the same snapshot /radar-export writes, plus the session's usage. The
 // page reads it from 127.0.0.1 with a token; nothing here depends on the server being up.
+//
+// Every session of this person shares one server, the hub. The hub file says where it listens and
+// holds its two tokens, readable by this user alone. The first /radar-web starts it; the other
+// sessions find it there and send their snapshots too, so one page shows them all. When the session
+// whose child it is goes away, the next to notice starts another on the same port with the same
+// tokens, and the open page carries on. /radar-web stop ends it for all of them.
 // ---------------------------------------------------------------------------
 
-// null, or { stream, base, url, ingest, ready, timer, dirty, lastPush, pushing }
+// null, or { stream, base, url, ingest, ready, timer, dirty, lastPush, pushing, fails }. `stream` is
+// the server this session started, null in one that joined another's
 let web = null
+// 'on' once this session has used the view, so it starts the server again when it goes; 'auto' only
+// joins one that runs
+let webMode = 'auto'
+let hubPath
+let lastHubLook = 0
+let hubLooking = false
+const HUB_TOKEN = /^[\w-]{32}$/
+
+// A variable's value, or null when unset or unreadable. Each name is spelled at the call, so the
+// variables the mod reads can be listed
+async function envGet(read) {
+  try {
+    return (await read()) || null
+  } catch {
+    return null
+  }
+}
+
+// Under the person's Claude Code configuration, where their other sessions look too
+async function hubFile($) {
+  if (hubPath !== undefined) return hubPath
+  const own = await envGet(() => $.env.get('SESSION_RADAR_HUB'))
+  const config = await envGet(() => $.env.get('CLAUDE_CONFIG_DIR'))
+  const home = (await envGet(() => $.env.get('USERPROFILE'))) ?? (await envGet(() => $.env.get('HOME')))
+  hubPath = own ?? (config ? `${config}/session-radar/hub.json` : home ? `${home}/.claude/session-radar/hub.json` : null)
+  return hubPath
+}
+
+async function readHub($) {
+  const file = await hubFile($)
+  if (!file) return null
+  try {
+    const hub = JSON.parse(await $.fs.read(file))
+    const portOk = Number.isInteger(hub?.port) && hub.port > 0 && hub.port < 65536
+    return portOk && HUB_TOKEN.test(hub.viewToken) && HUB_TOKEN.test(hub.ingestToken) ? hub : null
+  } catch {
+    // No hub yet, or a file that is not one
+    return null
+  }
+}
+
+const hubBase = (hub) => `http://127.0.0.1:${hub.port}`
+
+// Whether a server that knows this ingest token answers there: the file may name one long gone
+async function hubAnswers($, hub) {
+  try {
+    const res = await $.http.fetch(`${hubBase(hub)}/api/hello`, { method: 'POST', headers: { 'x-radar-token': hub.ingestToken } })
+    return res.status === 204
+  } catch {
+    return false
+  }
+}
 
 function markWebDirty() {
   if (web) web.dirty = true
@@ -989,7 +1145,7 @@ async function pushWeb($) {
       lang: L === STRINGS.pt ? 'pt' : 'en',
       ttlSeen: S.ttlSeen,
       usage,
-      session: clean({ ...badge, cwd, model, effort }),
+      session: clean({ ...badge, key: sessionKey ?? S.id, title: sessionTitle, cwd, model, effort }),
       insightsView: insightsView(),
       // The page shows the ones newer than it has seen, as a toast and, when allowed, a notification
       notices,
@@ -1001,75 +1157,151 @@ async function pushWeb($) {
       body,
     })
     w.lastPush = Date.now()
-    if (!res.ok) w.dirty = true
+    if (!res.ok) throw new Error(`status ${res.status}`)
+    w.fails = 0
   } catch {
     w.dirty = true
+    // The server went away, or another took its port: look for the hub again
+    if (++w.fails >= HUB_FAILS && web === w) dropWeb($)
   } finally {
     w.pushing = false
   }
 }
 
-// Resolves the page's URL once the server says where it listens, or null when it cannot start
-function startWeb($) {
-  if (web) return web.ready
-  const w = { stream: null, base: null, url: null, ingest: null, timer: null, dirty: true, lastPush: 0, pushing: false }
-  web = w
-  w.ready = new Promise((resolve) => {
+// Takes the server at `hub`: from now on this session's snapshots go there
+function attach($, w, hub) {
+  w.base = hubBase(hub)
+  w.url = `${w.base}/?t=${hub.viewToken}`
+  w.ingest = hub.ingestToken
+  w.timer = $.clock.every(WEB_PUSH_MS, () => pushWeb($))
+  webMode = 'on'
+  void pushWeb($)
+  showBadge($)
+  $.ui.invalidate('ui.render')
+  return w.url
+}
+
+// Forgets the server, and ends it when it is this session's child
+function dropWeb($) {
+  const w = web
+  if (!w) return
+  web = null
+  w.timer?.cancel()
+  // Not awaited: it settles only once the child has gone
+  try {
+    w.stream?.return?.()?.catch?.(() => {})
+  } catch {
+    // The stream had already ended
+  }
+  if (!w.base) return
+  showBadge($)
+  $.ui.invalidate('ui.render')
+}
+
+// Starts web/server.mjs, on the hub's port with its tokens when there is a hub. Resolves the page's
+// URL once the server says where it listens, 'busy' when another session's server took that port
+// first, or null when it cannot start
+async function spawnServer($, w, hub) {
+  const env = clean({
+    RADAR_HUB_FILE: await hubFile($),
+    RADAR_WEB_PORT: hub ? String(hub.port) : null,
+    RADAR_VIEW_TOKEN: hub?.viewToken,
+    RADAR_INGEST_TOKEN: hub?.ingestToken,
+  })
+  return new Promise((resolve) => {
     let settled = false
-    const settle = (url) => {
+    const settle = (value) => {
       if (settled) return
       settled = true
-      resolve(url)
+      resolve(value)
     }
-    const end = () => {
-      w.timer?.cancel()
-      if (web === w) web = null
-      settle(null)
-      showBadge($)
-      $.ui.invalidate('ui.render')
-    }
+    let stream
     try {
-      w.stream = $.process.spawn({ argv: ['node', `${$.plugin.root}/web/server.mjs`], cwd: $.plugin.root })
+      stream = $.process.spawn({ argv: ['node', `${$.plugin.root}/web/server.mjs`], cwd: $.plugin.root, env })
     } catch {
-      end()
+      settle(null)
       return
     }
+    w.stream = stream
     // The loop is the child's life: it reads until the server exits, then forgets it
     void (async () => {
       let buf = ''
+      let busy = false
       try {
-        for await (const { stream, text } of w.stream) {
-          if (stream !== 'stdout' || w.base) continue
+        for await (const { stream: pipe, text } of stream) {
+          if (pipe !== 'stdout' || w.base) continue
           buf += text
+          if (buf.includes('RADAR_BUSY')) busy = true
           const m = /RADAR_READY (\{.*\})/.exec(buf)
-          if (!m) continue
-          const info = JSON.parse(m[1])
-          w.base = `http://127.0.0.1:${info.port}`
-          w.url = `${w.base}/?t=${info.viewToken}`
-          w.ingest = info.ingestToken
-          w.timer = $.clock.every(WEB_PUSH_MS, () => pushWeb($))
-          void pushWeb($)
-          settle(w.url)
-          showBadge($)
-          $.ui.invalidate('ui.render')
+          if (m) settle(attach($, w, JSON.parse(m[1])))
         }
       } catch {
         // node is missing or the server failed: the radar goes on without it
       }
-      end()
+      if (w.stream === stream) w.stream = null
+      settle(busy ? 'busy' : null)
+      // A server that ran and went away: the clock looks for the hub again
+      if (w.base && web === w) dropWeb($)
     })()
     $.clock.after(WEB_START_MS, () => {
-      if (!w.base && web === w) stopWeb($)
+      if (settled) return
+      settle(null)
+      try {
+        stream.return?.()?.catch?.(() => {})
+      } catch {
+        // Already ended
+      }
     })
   })
+}
+
+// Resolves the page's URL: the hub's when one answers, else that of a server this session starts,
+// unless `spawn` is false; null when there is none
+function startWeb($, { spawn = true } = {}) {
+  if (web) return web.ready
+  const w = { stream: null, base: null, url: null, ingest: null, timer: null, dirty: true, lastPush: 0, pushing: false, fails: 0 }
+  web = w
+  w.ready = (async () => {
+    const hub = await readHub($)
+    let url = hub && (await hubAnswers($, hub)) ? attach($, w, hub) : null
+    if (!url && spawn) url = await spawnServer($, w, hub)
+    // Another session started its server on the hub's port a moment before: join it. A port some
+    // other program holds gets a server of its own on a new one
+    if (url === 'busy') {
+      const now = await readHub($)
+      url = now && (await hubAnswers($, now)) ? attach($, w, now) : await spawnServer($, w, null)
+      if (url === 'busy') url = null
+    }
+    if (!url) {
+      if (web === w) dropWeb($)
+      if (spawn) webMode = 'auto'
+    }
+    return url
+  })()
   return w.ready
 }
 
+// From the clock: a session that has used the view starts it again when its server went away, unless
+// the person ended it; any other joins the hub when one runs
+async function lookForHub($) {
+  if (web || hubLooking || Date.now() - lastHubLook < HUB_JOIN_MS) return
+  hubLooking = true
+  lastHubLook = Date.now()
+  try {
+    // Nowhere to find one: the view runs only where /radar-web started it
+    if (!(await hubFile($))) return
+    if (webMode === 'on' && (await readHub($))?.stopped) webMode = 'auto'
+    await startWeb($, { spawn: webMode === 'on' })
+  } finally {
+    hubLooking = false
+  }
+}
+
+// Ends the view for every session: the server marks the hub stopped, so none starts it again
 async function stopWeb($) {
   const w = web
+  webMode = 'auto'
   if (!w) return false
-  web = null
-  w.timer?.cancel()
   if (w.base) {
     try {
       await $.http.fetch(`${w.base}/api/shutdown`, { method: 'POST', headers: { 'x-radar-token': w.ingest } })
@@ -1077,15 +1309,23 @@ async function stopWeb($) {
       // Already gone; without heartbeats it would end on its own anyway
     }
   }
-  showBadge($)
-  // Not awaited: it settles only once the child has gone, which the shutdown above already asked for
+  dropWeb($)
+  return !!w.base
+}
+
+// The session is over: the page shows it ended, the server keeps the others
+async function leaveWeb($) {
+  const w = web
+  if (!w?.base) return
   try {
-    w.stream?.return?.()?.catch?.(() => {})
+    await $.http.fetch(`${w.base}/api/leave`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-radar-token': w.ingest },
+      body: JSON.stringify({ key: sessionKey ?? S.id }),
+    })
   } catch {
-    // The stream had already ended
+    // The server is gone already
   }
-  $.ui.invalidate('ui.render')
-  return true
 }
 
 // Hands the URL to the system's browser. The pane and the command's reply show it too, as a link,
@@ -1532,7 +1772,8 @@ export function register(on) {
     } catch {
       // No session id here: the radar's own id still tells this session apart
     }
-    badge = makeBadge(sessionId ?? S.id, baseName(cwd))
+    sessionKey = sessionId ?? sessionKey ?? S.id
+    badge = makeBadge(sessionKey, baseName(cwd))
     showBadge($)
     if (cfg.insights) await loadInsights($)
     await $.command.register({ name: 'radar', description: L.cmdRadar, immediate: true })
@@ -1542,9 +1783,10 @@ export function register(on) {
     await $.command.register({ name: 'radar-config', description: L.cmdConfig, immediate: true })
     // Keep the timers of running items moving, once a second, only when something is on screen;
     // and warn before the cache expires, when the person asked for it; and hand Claude Code what
-    // changed, for a reload
+    // changed, for a reload; and join the browser view another session started
     $.clock.every(1000, () => {
       checkCache($)
+      void lookForHub($)
       if (saveDirty && Date.now() - lastSave >= SAVE_MS) void saveState($)
       if (paneOpen || S.spans.some((s) => !s.end)) $.ui.invalidate('ui.render')
     })
@@ -1560,6 +1802,9 @@ export function register(on) {
       openTurn = null
       markWebDirty()
       await saveState($)
+    } else {
+      await leaveWeb($)
+      dropWeb($)
     }
     return next(e)
   })
@@ -1641,6 +1886,46 @@ export function register(on) {
     }
   })
 
+  // Every classic hook event, seen from the radar's place in the chain: the time is what the hooks
+  // beneath it took, the answer theirs. The radar answers nothing itself and hands every result on
+  // as it came.
+  on('classic.*', async ($, e, next) => {
+    const event = String(next.event ?? '').replace(/^classic\./, '')
+    if (!event || !e || typeof e !== 'object') return next(e)
+    if (typeof e.session_title === 'string') takeTitle(e.session_title)
+    // A message reaches the screen in many pieces: one row per message, counting them
+    if (event === 'MessageDisplay') {
+      const prev = S.hooks.findLast((hk) => hk.event === 'MessageDisplay' && hk.msg === e.message_id)
+      if (prev) {
+        prev.pieces++
+        const r = await next(e)
+        prev.end = Date.now()
+        if (r?.displayContent) prev.out = { ...prev.out, rewrote: true }
+        markWebDirty()
+        saveDirty = true
+        return r
+      }
+    }
+    const hook = openHook(event, e)
+    if (event === 'MessageDisplay') {
+      hook.msg = e.message_id
+      hook.pieces = 1
+    }
+    redraw($)
+    let status = 'error'
+    let out = null
+    try {
+      const r = await next(e)
+      out = hookOutcome(r)
+      status = out.block != null || out.decision === 'deny' ? 'blocked' : 'ok'
+      if (out.title) takeTitle(out.title)
+      return r
+    } finally {
+      closeHook(hook, status, out)
+      redraw($)
+    }
+  })
+
   // Subagents. Field names can differ between versions: check the index.d.ts for yours.
   on('agent.spawn', async ($, e, next) => {
     const id = e.agentId ?? e.id
@@ -1659,9 +1944,17 @@ export function register(on) {
       S.turns.push({
         id: e.turnId, n: ++S.turnSeq, prompt: trunc(oneLine(e.text ?? ''), MAX_LABEL),
         start: Date.now(), end: null, reason: null,
-        calls: 0, fails: 0, api: 0, tokIn: 0, tokOut: 0, byTool: {},
+        calls: 0, fails: 0, api: 0, tokIn: 0, tokOut: 0, byTool: {}, hooks: 0,
       })
       if (S.turns.length > MAX_TURNS) S.turns.shift()
+      // The prompt's own hooks ran just before its activity began
+      const turn = S.turns.at(-1)
+      for (const hk of S.hooks) {
+        if (!hk.pending) continue
+        delete hk.pending
+        hk.turn = turn.id
+        turn.hooks++
+      }
       saveDirty = true
     }
     return next(e)

@@ -8,6 +8,8 @@ export type SessionRadarSaved = {
   savedAt: number
   seq: number
   exportRoot: string | null
+  // The title Claude Code gave the session, as its hooks receive it
+  title?: string | null
   S: {
     id: string
     startedAt: number
@@ -16,6 +18,9 @@ export type SessionRadarSaved = {
     agents: Record<string, unknown>[]
     turns: Record<string, unknown>[]
     turnSeq: number
+    // Every classic hook event seen, and their count; absent in what 0.7 saved
+    hooks?: Record<string, unknown>[]
+    hookSeq?: number
     ttlSeen: boolean
     totals: Record<string, number>
   }

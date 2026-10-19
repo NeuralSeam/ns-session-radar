@@ -191,7 +191,8 @@ assert.ok(data.spans.every((s) => s.label.length <= 120), 'labels are capped')
 // The credit is added beside the existing fields, never in place of one
 assert.equal(data.generator, 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)')
 assert.equal(data.tool, 'session-radar')
-assert.deepEqual(Object.keys(data), ['tool', 'generator', 'exportedAt', 'startedAt', 'totals', 'turns', 'agents', 'spans'])
+// Hooks came after the 0.7 fields, and only after them
+assert.deepEqual(Object.keys(data), ['tool', 'generator', 'exportedAt', 'startedAt', 'totals', 'turns', 'agents', 'spans', 'hooks'])
 
 // The credit sits on the last line of every tab, in the pane's language, and only in the pane
 const lastLine = async () => flat(await drawPane()).split('\n').at(-1)
@@ -640,5 +641,68 @@ const fireThird = (name, ev, next = async (e) => e) => third.find((x) => x.name 
 await fireThird('session.start', { cwd: '/work/app' })
 await fireThird('command.run', { command: 'radar-export' })
 assert.equal(JSON.parse(writes.at(-1).text).turns.length, 0)
+
+// ---------------------------------------------------------------------------
+// Hooks: every classic hook event, with how long the hooks beneath took and what they answered
+// ---------------------------------------------------------------------------
+
+const glob = third.find((x) => x.name === 'classic.*')
+assert.ok(glob, 'one hook on every classic event')
+// As the engine runs a glob hook: next.event names the event, next(e) runs the hooks beneath
+const classic = (event, ev, answer = {}) => glob.fn($, ev, Object.assign(async () => {
+  await sleep(2)
+  if (answer instanceof Error) throw answer
+  return answer
+}, { event: `classic.${event}` }))
+const ctx = { session_id: 'sim-session-1', transcript_path: '/home/u/.claude/projects/x/sim-session-1.jsonl', cwd: '/work/app' }
+
+const started = await classic('SessionStart', { ...ctx, hook_event_name: 'SessionStart', source: 'startup', session_title: 'Fix the login' },
+  { additionalContext: ['Run npm install first', 'second note'] })
+assert.deepEqual(started.additionalContext, ['Run npm install first', 'second note'], 'the answer is handed on as it came')
+// The prompt's hook runs before its activity starts, and joins it once it does
+await classic('UserPromptSubmit', { ...ctx, hook_event_name: 'UserPromptSubmit', prompt: 'the secret prompt text', source: 'user', session_title: 'Fix the login' })
+await fireThird('turn.start', { turnId: 'h1', text: 'the secret prompt text' })
+const denied = await classic('PreToolUse', { tool: 'Bash', command: 'rm -rf /tmp/x', tool_use_id: 'tu1' }, { deny: 'blocked by policy' })
+assert.equal(denied.deny, 'blocked by policy')
+await classic('PostToolUse', { ...ctx, hook_event_name: 'PostToolUse', tool_name: 'mcp__github__search_issues', tool_input: { query: 'auth bug' }, tool_response: { huge: 'x'.repeat(5000) } })
+for (let i = 0; i < 3; i++) await classic('MessageDisplay', { ...ctx, hook_event_name: 'MessageDisplay', turn_id: 'h1', message_id: 'm1', index: i, final: i === 2, delta: 'private words' })
+await classic('Stop', { ...ctx, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: 'private answer' }, { block: 'tests are failing' })
+await assert.rejects(classic('PostToolBatch', { ...ctx, hook_event_name: 'PostToolBatch', tool_calls: [{}, {}] }, new Error('hook crashed')), /hook crashed/)
+await fireThird('turn.complete', { turnId: 'h1', durationMs: 50 })
+await classic('Notification', { ...ctx, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' })
+await fireThird('command.run', { command: 'radar-export' })
+const hooked = JSON.parse(writes.at(-1).text)
+const byEvent = (ev) => hooked.hooks.filter((hk) => hk.event === ev)
+assert.equal(hooked.totals.hooks, 8, 'one record per event, the message pieces in one')
+assert.equal(hooked.totals.hookBlocks, 2)
+const [ss] = byEvent('SessionStart')
+assert.equal(ss.label, 'startup')
+assert.equal(ss.turn, null, 'before any activity')
+assert.deepEqual(ss.out.ctx, ['Run npm install first', 'second note'])
+assert.ok(ss.end >= ss.start && ss.status === 'ok')
+const turn = hooked.turns.find((x) => x.id === 'h1')
+const [ups] = byEvent('UserPromptSubmit')
+assert.equal(ups.turn, 'h1', 'the prompt hook belongs to the activity it started')
+assert.equal(ups.pending, undefined)
+const [pre] = byEvent('PreToolUse')
+assert.deepEqual([pre.tool, pre.label, pre.status, pre.out.decision, pre.out.reason], ['Bash', 'rm -rf /tmp/x', 'blocked', 'deny', 'blocked by policy'])
+assert.equal(pre.turn, 'h1')
+const [post] = byEvent('PostToolUse')
+assert.deepEqual([post.tool, post.label, post.status], ['github·search_issues', 'auth bug', 'ok'])
+const [shown] = byEvent('MessageDisplay')
+assert.equal(shown.pieces, 3)
+assert.equal(byEvent('Stop')[0].status, 'blocked')
+assert.equal(byEvent('Stop')[0].out.block, 'tests are failing')
+assert.equal(byEvent('PostToolBatch')[0].status, 'error', 'a hook that failed')
+assert.equal(byEvent('PostToolBatch')[0].label, '2 calls')
+assert.equal(byEvent('Notification')[0].turn, null, 'after the activity ended')
+assert.equal(byEvent('Notification')[0].label, 'idle_prompt: Claude is waiting for your input')
+assert.equal(turn.hooks, 6)
+const kept2 = JSON.stringify(hooked.hooks)
+for (const words of ['secret prompt', 'private words', 'private answer', 'xxxxxxxxxx']) {
+  assert.ok(!kept2.includes(words), `the hooks keep no "${words}"`)
+}
+// The title Claude Code gave the session is kept for the browser view, and across a reload
+assert.equal(JSON.parse(state.get('session-radar.session')).title, 'Fix the login')
 
 console.log('session-radar: all checks passed')
