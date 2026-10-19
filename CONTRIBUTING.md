@@ -64,10 +64,15 @@ file, not memory, is the source for event and field names.
    pane's four tabs (Home shows the effort level only when `/config` lists it), the spinner,
    `/radar-export`, `/clear`, and a narrow terminal. In `/radar-config`, turn on both notifications
    and insights: an activity over the minimum notifies, the cache warning comes once while idle, and
-   the Insights tab and the export show the findings. Press `w`: the browser view's six views draw,
+   the Insights tab and the export show the findings. Press `w`: the browser view's eight views draw,
    its memory card moves every couple of seconds, the Insights view matches the pane, and a
-   `mark applied` in the pane shows on the page within a second or two. Run
-   `/session-radar:radar-review` on the export.
+   `mark applied` in the pane shows on the page within a second or two. The Hooks view lists the
+   session's hook events, `SessionStart` and `PreToolUse` among them. Start a second session with
+   `claude --plugin-dir .` in another terminal, without `/radar-web`: within about 5 seconds it is
+   in the header's picker, by its title, and its badge is under its prompt; `All sessions` merges
+   both in Activities and Hooks. Close the first terminal: the page carries on at the same address.
+   `/radar-web stop` in the second ends it for both. Run `/session-radar:radar-review` on the
+   export.
 4. Repeat 3 in the Desktop app's Code tab.
 5. Add a row to [COMPATIBILITY.md](./COMPATIBILITY.md) with `claude --version`, the surface and
    the date.

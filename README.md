@@ -132,7 +132,8 @@ follows it.
 ### In the browser
 
 Press `w` in the pane or run `/radar-web` ([Browser view](#browser-view) says how it is kept local).
-Keys `1` to `6` switch view; the first three match the pane's.
+Keys `1` to `8` switch view; the first three match the pane's. The picker in the header chooses
+the session the page shows, or all of them (see [Browser view](#browser-view)).
 
 **1 · Home.** The session's cards (model and effort, context, tokens, cost, plan limits) and the
 **machine's memory**: how much is in use, of how much, and a chart of the last 10 minutes. Below,
@@ -171,6 +172,18 @@ long it has left, and how many tokens the next request rewrites if it expires. T
 entry's lifetime every time a request reads it, so the countdown runs from the last request. The
 TTL comes from the request itself, which says how much it wrote for 5 minutes and how much for 1
 hour.
+
+**7 · Hooks.** Every hook event Claude Code raises (`PreToolUse`, `PostToolUse`, `Stop`,
+`SessionStart`, `Notification` and the rest), whether or not you configured a hook for it: when it
+fired, the tool or occasion it is about, its activity and agent, how long the hooks took, and what
+they answered. `allowed`, `asked` and `denied` are a `PreToolUse` hook's decision, `blocked` a
+hook that blocked the event, `+N context` text a hook handed to the model, `no action` an event no
+hook answered. Filter by event, status or text; press one for its reason and the context it added.
+Each activity in Activities lists its own hooks too. Where an organization manages Claude Code, hook
+events reach only the plugins its managed settings list, so there this view stays empty unless
+Session Radar is one of them.
+
+**8 · Q&A.** Answers to the common questions about the radar and the page, filtered by the search.
 
 Without Node, or without a browser on the same machine (a plain SSH session, some containers), the
 timeline, the agents and the tokens are still in the export (`/radar-export`).
@@ -269,11 +282,11 @@ Below the navigation the page shows one ad, marked as such: today Neural Seam's 
 Seam Premium. It is part of the page, like the rest: nothing is loaded to show it and nobody is told
 it was shown; only clicking it opens neuralseam.cloud in a new tab.
 
-The page has six views, described under [In the browser](#in-the-browser): Home with the
-machine's memory, Activities and Insights as in the pane, and Timeline, Agents and Tokens, which
-only the browser shows. Config stays in the pane, and so does marking a finding as applied: the page
+The page has eight views, described under [In the browser](#in-the-browser): Home with the
+machine's memory, Activities and Insights as in the pane, and Timeline, Agents, Tokens, Hooks and
+Q&A, which only the browser shows. Config stays in the pane, and so does marking a finding as applied: the page
 only reads. It adds a search box, filters by kind, status, agent and time window, sortable tables,
-charts and a panel with every detail of a call or subagent. Keys: `1` to `6` switch view, `/`
+charts and a panel with every detail of a call or subagent. Keys: `1` to `8` switch view, `/`
 searches, `Esc` closes the panel.
 
 **Several sessions at once.** Each session has a badge: a mark and a four-letter code, such as
@@ -290,6 +303,21 @@ under the prompt of the session's terminal (`▲ radar K7QF`), and the same badg
 The pane's status row starts with the badge too. To keep it under the prompt even with the browser
 view closed, turn on `Always show this session's badge` in Config.
 
+**All your sessions on one page.** Every session of yours on the machine shares one server. Run
+`/radar-web` in any of them: the others find the page on their own within about 5 seconds, and
+their badges show under their prompts. The picker in the header lists them by name, the title
+Claude Code gives the session (the one set with `/rename`, or the one it made up), else the project
+folder:
+
+- pick one, and every view shows that session;
+- pick `All sessions`, and Home shows a card per session, while Activities and Hooks merge them,
+  naming each row's session. Timeline, Agents, Tokens and Insights ask you to pick one.
+
+A session that closes, or sends nothing for 20 seconds, is marked ended and stays on the page for 30
+minutes. When the session whose terminal started the server closes, another session starts it again
+on the same address, and the open page carries on. `/radar-web stop` ends the page for every
+session, and none starts it again until someone runs `/radar-web`.
+
 How it is kept local:
 
 - It listens on `127.0.0.1` only, on a port the system picks, and refuses any request whose `Host`
@@ -297,9 +325,10 @@ How it is kept local:
 - The data needs a random token that only the URL you were given carries; sending data needs a
   second token only the mod knows. The page loads nothing from elsewhere (a `Content-Security-Policy`
   of `'self'`).
-- It holds only the last snapshot and the last 10 minutes of memory samples, in memory. It ends
-  with `/radar-web stop`, when Claude Code exits or reloads the mod, and by itself 30 seconds after
-  the mod stops sending.
+- Where it listens and its two tokens are kept in `session-radar/hub.json` under your Claude Code
+  configuration directory, readable by your user alone, so your other sessions can find it.
+- It holds only the last snapshot of each session and the last 10 minutes of memory samples, in
+  memory. It ends with `/radar-web stop`, and by itself 30 seconds after no session sends any more.
 
 The `w` key works while the pane has the focus, not while you type at the prompt: a mod cannot take
 a plain letter from the prompt. If Node is missing, `/radar-web` says so and everything else keeps
