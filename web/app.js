@@ -10,7 +10,7 @@
 ;(() => {
   const I18N = {
     en: {
-      views: { home: 'Home', activities: 'Activities', insights: 'Insights', timeline: 'Timeline', agents: 'Agents', tokens: 'Tokens', hooks: 'Hooks' },
+      views: { home: 'Home', activities: 'Activities', insights: 'Insights', timeline: 'Timeline', agents: 'Agents', tokens: 'Tokens', hooks: 'Hooks', qa: 'Q&A' },
       kinds: { tool: 'Tools', mcp: 'MCP', web: 'Web', agent: 'Subagents', api: 'Model API' },
       model: 'Model', effort: (e) => `effort ${e}`, tokens: 'Tokens',
       tokensSub: (out, hit) => `${out} out · ${hit}% from cache`, tokIn: 'in',
@@ -76,7 +76,8 @@
         w5: 'written, 5m TTL', w1h: 'written, 1h TTL', type: 'Type', parent: 'Parent', calls: 'Calls', recent: 'Recent calls',
         ttl: 'Cache TTL', cacheAt: 'Cache last used', openAgent: 'Open subagent', inTimeline: 'Show in timeline', agentCalls: 'Calls in memory',
       },
-      hint: '1–7 switch views · / search · Esc close',
+      hint: '1–8 switch views · / search · Esc close',
+      qaIntro: 'Questions about the radar and this page. Type in the search to find one.',
       allSessions: (n) => `All sessions (${n})`, nSessions: (n) => `${n} ${n === 1 ? 'session' : 'sessions'}`,
       sessionTip: 'Every Claude Code session on this machine that has the radar sends here. Pick one, or see all of them.',
       sessAlive: 'live', sessBusy: (p) => `working: ${p}`, sessIdle: 'waiting for a prompt',
@@ -100,7 +101,7 @@
       adTag: 'Ad', adLabel: 'Advertisement',
     },
     pt: {
-      views: { home: 'Início', activities: 'Atividades', insights: 'Insights', timeline: 'Tempo', agents: 'Agentes', tokens: 'Tokens', hooks: 'Hooks' },
+      views: { home: 'Início', activities: 'Atividades', insights: 'Insights', timeline: 'Tempo', agents: 'Agentes', tokens: 'Tokens', hooks: 'Hooks', qa: 'Perguntas' },
       kinds: { tool: 'Ferramentas', mcp: 'MCP', web: 'Web', agent: 'Subagentes', api: 'API do modelo' },
       model: 'Modelo', effort: (e) => `esforço ${e}`, tokens: 'Tokens',
       tokensSub: (out, hit) => `${out} saída · ${hit}% do cache`, tokIn: 'entrada',
@@ -166,7 +167,8 @@
         w5: 'gravados, TTL 5m', w1h: 'gravados, TTL 1h', type: 'Tipo', parent: 'Pai', calls: 'Chamadas', recent: 'Últimas chamadas',
         ttl: 'TTL do cache', cacheAt: 'Último uso do cache', openAgent: 'Abrir subagente', inTimeline: 'Ver no tempo', agentCalls: 'Chamadas na memória',
       },
-      hint: '1–7 trocam a visão · / busca · Esc fecha',
+      hint: '1–8 trocam a visão · / busca · Esc fecha',
+      qaIntro: 'Perguntas sobre o radar e esta página. Digite na busca para achar uma.',
       allSessions: (n) => `Todas as sessões (${n})`, nSessions: (n) => `${n} ${n === 1 ? 'sessão' : 'sessões'}`,
       sessionTip: 'Toda sessão do Claude Code nesta máquina que tem o radar envia para cá. Escolha uma, ou veja todas.',
       sessAlive: 'ao vivo', sessBusy: (p) => `trabalhando: ${p}`, sessIdle: 'aguardando prompt',
@@ -193,9 +195,9 @@
 
   const KINDS = ['tool', 'mcp', 'web', 'agent', 'api']
   // The first three match the terminal pane's tabs 1 to 3
-  const VIEWS = ['home', 'activities', 'insights', 'timeline', 'agents', 'tokens', 'hooks']
-  // The views that show every session together when no single one is picked
-  const MERGED = ['home', 'activities', 'hooks']
+  const VIEWS = ['home', 'activities', 'insights', 'timeline', 'agents', 'tokens', 'hooks', 'qa']
+  // The views that show every session together when no single one is picked; Q&A needs none
+  const MERGED = ['home', 'activities', 'hooks', 'qa']
   const HOOKS_SHOWN = 400
   const MEM_KEEP = 300
   const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
@@ -210,6 +212,76 @@
     en: { title: 'Neural Seam Premium', body: 'Take your Claude Code projects further, from plan to delivery.', cta: 'See Premium →' },
     pt: { title: 'Neural Seam Premium', body: 'Leve seus projetos com o Claude Code mais longe, do plano à entrega.', cta: 'Conheça o Premium →' },
   }]
+  // The Q&A view: questions about the radar itself, in the page's two languages. Text only, drawn as
+  // text like everything else
+  const QA = {
+    en: [
+      ['Getting started', [
+        ['How do I open this page?', 'Run /radar-web in any Claude Code session that has the radar, or press w in the /radar pane. The terminal names the address, and the page opens in your default browser.'],
+        ['It says it is waiting for the first snapshot.', 'The server is up but no session has sent anything yet. Send a prompt in a session with the radar; it shows up here within a second.'],
+        ['What are the keyboard shortcuts?', '1 to 8 switch views, / goes to the search, Esc closes the detail panel or clears the search.'],
+      ]],
+      ['Sessions', [
+        ['How do I see several sessions?', 'Run /radar-web in one of them. Every other session with the radar on this machine finds the page on its own within about 5 seconds, and shows its badge under the prompt. Pick one in the header, or All sessions to see them together.'],
+        ['Where does a session\'s name come from?', 'From the title Claude Code gives the session: the one you set with /rename, or the one it made up. A new name shows after the session\'s next prompt. Without a title, the folder name is used.'],
+        ['Which views show all sessions together?', 'Home shows one card per session; Activities and Hooks merge them, with a column naming each row\'s session. Timeline, Agents, Tokens and Insights show one session at a time: pick one in the header.'],
+        ['What does "ended" mean?', 'The session closed, or sent nothing for 20 seconds. It stays on the page for 30 minutes, so you can still look at it, then the server drops it.'],
+        ['I closed the terminal that opened the page.', 'Another session with the radar starts the server again on the same address within a few seconds, and the page carries on.'],
+        ['How do I stop it?', '/radar-web stop, in any session, ends the page for every session. None starts it again until someone runs /radar-web.'],
+      ]],
+      ['Hooks', [
+        ['What does the Hooks view list?', 'Every hook event Claude Code raises (PreToolUse, PostToolUse, Stop, SessionStart, Notification, and the rest), whether or not you configured a hook for it. Each activity also lists its own hooks.'],
+        ['What do the results mean?', 'allowed, asked and denied are a PreToolUse hook\'s decision; blocked is a hook that blocked the event (exit code 2, or decision "block"); +N context is text a hook handed to the model; no action means no hook answered.'],
+        ['What is the duration?', 'How long the hooks beneath the radar took to answer: your configured hooks, and Claude Code\'s own handling of the event.'],
+        ['The Hooks view stays empty.', 'Where an organization manages Claude Code, hook events only reach the plugins its managed settings list. Otherwise, wait for the first event: SessionStart fires when a session starts, PreToolUse before every tool call.'],
+      ]],
+      ['The other views', [
+        ['Activities', 'One row per prompt you sent, with every tool it called, its hooks, failures, requests and tokens. Click a row to open it.'],
+        ['Timeline', 'Every call as a bar over time. Filter by kind, status, agent and time window; subagents\' calls are indented under them.'],
+        ['Agents', 'The main session and every subagent, with their calls, requests and tokens.'],
+        ['Tokens', 'Each request to the model: new input, cache read, cache written, output. A highlighted row probably lost the cache.'],
+        ['Insights', 'Suggestions for your Claude Code setup, from this session and earlier ones of the project. Off by default: turn them on in /radar-config.'],
+      ]],
+      ['Privacy', [
+        ['Does anything leave my machine?', 'No. The server listens on 127.0.0.1 only, the page loads nothing from elsewhere, and the radar calls no model and sends no telemetry.'],
+        ['What does the radar keep?', 'For each call or hook, one line of at most 120 characters; for each prompt, its first 120 characters. Never Claude\'s replies, tool output, or the text of a message. It is gone when the session ends.'],
+        ['Who can open this page?', 'Anyone on this machine who has its address, or who can read session-radar/hub.json in your Claude Code configuration directory. Treat the address like the export file.'],
+      ]],
+    ],
+    pt: [
+      ['Começando', [
+        ['Como abro esta página?', 'Rode /radar-web em qualquer sessão do Claude Code que tenha o radar, ou aperte w no painel do /radar. O terminal mostra o endereço, e a página abre no seu navegador padrão.'],
+        ['Aparece "aguardando o primeiro envio".', 'O servidor está no ar, mas nenhuma sessão enviou nada ainda. Mande um prompt numa sessão com o radar; ela aparece aqui em um segundo.'],
+        ['Quais são os atalhos de teclado?', '1 a 8 trocam a visão, / vai para a busca, Esc fecha o painel de detalhe ou limpa a busca.'],
+      ]],
+      ['Sessões', [
+        ['Como vejo várias sessões?', 'Rode /radar-web em uma delas. Toda outra sessão com o radar nesta máquina encontra a página sozinha em uns 5 segundos e mostra o crachá abaixo do prompt. Escolha uma no cabeçalho, ou Todas as sessões para ver juntas.'],
+        ['De onde vem o nome de uma sessão?', 'Do título que o Claude Code dá à sessão: o que você definiu com /rename, ou o que ele criou. Um nome novo aparece depois do próximo prompt da sessão. Sem título, aparece o nome da pasta.'],
+        ['Quais visões mostram todas as sessões juntas?', 'O Início mostra um card por sessão; Atividades e Hooks juntam todas, com uma coluna dizendo de qual sessão é cada linha. Tempo, Agentes, Tokens e Insights mostram uma sessão por vez: escolha no cabeçalho.'],
+        ['O que significa "encerrada"?', 'A sessão foi fechada, ou passou 20 segundos sem enviar nada. Ela fica na página por 30 minutos, para você ainda consultar, e depois o servidor a remove.'],
+        ['Fechei o terminal que abriu a página.', 'Outra sessão com o radar sobe o servidor de novo no mesmo endereço em alguns segundos, e a página continua.'],
+        ['Como paro?', '/radar-web stop, em qualquer sessão, encerra a página para todas. Nenhuma a reabre até alguém rodar /radar-web.'],
+      ]],
+      ['Hooks', [
+        ['O que a visão Hooks lista?', 'Todo evento de hook que o Claude Code dispara (PreToolUse, PostToolUse, Stop, SessionStart, Notification e os demais), tenha você configurado um hook para ele ou não. Cada atividade também lista os próprios hooks.'],
+        ['O que significam os resultados?', 'permitiu, perguntou e negou são a decisão de um hook de PreToolUse; bloqueou é um hook que barrou o evento (exit code 2, ou decision "block"); +N contexto é texto que um hook entregou ao modelo; sem ação quer dizer que nenhum hook respondeu.'],
+        ['O que é a duração?', 'Quanto tempo os hooks abaixo do radar levaram para responder: os hooks que você configurou e o tratamento do próprio Claude Code para o evento.'],
+        ['A visão Hooks fica vazia.', 'Onde uma organização gerencia o Claude Code, os eventos de hook só chegam aos plugins listados nas configurações gerenciadas. Fora isso, espere o primeiro evento: SessionStart dispara quando uma sessão começa, PreToolUse antes de cada chamada de ferramenta.'],
+      ]],
+      ['As outras visões', [
+        ['Atividades', 'Uma linha por prompt que você enviou, com cada ferramenta que ele chamou, seus hooks, falhas, requisições e tokens. Clique numa linha para abrir.'],
+        ['Tempo', 'Cada chamada como uma barra no tempo. Filtre por tipo, estado, agente e janela de tempo; as chamadas dos subagentes aparecem recuadas abaixo deles.'],
+        ['Agentes', 'A sessão principal e cada subagente, com suas chamadas, requisições e tokens.'],
+        ['Tokens', 'Cada requisição ao modelo: entrada nova, lida do cache, gravada no cache e saída. Uma linha destacada provavelmente perdeu o cache.'],
+        ['Insights', 'Sugestões para a sua configuração do Claude Code, a partir desta sessão e das anteriores do projeto. Desligados por padrão: ligue em /radar-config.'],
+      ]],
+      ['Privacidade', [
+        ['Alguma coisa sai da minha máquina?', 'Não. O servidor escuta só em 127.0.0.1, a página não carrega nada de fora, e o radar não chama nenhum modelo nem envia telemetria.'],
+        ['O que o radar guarda?', 'Para cada chamada ou hook, uma linha de no máximo 120 caracteres; para cada prompt, os primeiros 120 caracteres. Nunca as respostas do Claude, a saída das ferramentas ou o texto de uma mensagem. Tudo some quando a sessão termina.'],
+        ['Quem pode abrir esta página?', 'Qualquer pessoa nesta máquina que tenha o endereço, ou que consiga ler session-radar/hub.json na sua pasta de configuração do Claude Code. Trate o endereço como o arquivo de exportação.'],
+      ]],
+    ],
+  }
   const NOTICES_SHOWN = 4
   const CHART_MAX = 120
 
@@ -232,6 +304,7 @@
   let pointerDown = false
   let agentsSig = ''
   let shownView = null
+  let shownQa = null
   // The machine's memory, sampled by the local server: { at, total, free }, oldest first
   let memory = []
 
@@ -250,6 +323,8 @@
     // 'all', or the key of the one session the views show
     session: 'all',
     hookEvent: 'all',
+    // The Q&A answers left open, by their question
+    qaOpen: new Set(),
   }
 
   try {
@@ -1251,6 +1326,34 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Q&A: fixed questions and answers, in the page's language, filtered by the search
+  // ---------------------------------------------------------------------------
+
+  function qaView() {
+    const q = ui.search.trim().toLowerCase()
+    const sections = QA[T === I18N.pt ? 'pt' : 'en']
+      .map(([title, items]) => [title, items.filter(([ask, answer]) => !q || `${title} ${ask} ${answer}`.toLowerCase().includes(q))])
+      .filter(([, items]) => items.length)
+    if (!sections.length) return [empty(T.emptyFiltered)]
+    return [
+      h('p', { class: 'note' }, T.qaIntro),
+      ...sections.map(([title, items]) => h('section', { class: 'qa-section' },
+        sectionTitle(title),
+        h('div', { class: 'qa-list' }, items.map(([ask, answer]) => h('details', {
+          class: 'qa',
+          open: q || ui.qaOpen.has(ask) ? true : null,
+          ontoggle: (ev) => {
+            if (q) return
+            if (ev.target.open) ui.qaOpen.add(ask)
+            else ui.qaOpen.delete(ask)
+          },
+        },
+          h('summary', null, ask),
+          h('p', null, answer)))))),
+    ]
+  }
+
+  // ---------------------------------------------------------------------------
   // Insights, read-only: the mod sends them with their texts; marking stays in the terminal
   // ---------------------------------------------------------------------------
 
@@ -1629,8 +1732,17 @@
     shownView = ui.view
     const atBottom = switched || view.scrollHeight - view.scrollTop - view.clientHeight < 8
     const top = switched ? 0 : view.scrollTop
+    // The questions change only with the language and the search: a snapshot leaves them as they
+    // are, so an answer being read or clicked is not redrawn from under the reader
+    const qaSig = ui.view === 'qa' ? `${T === I18N.pt ? 'pt' : 'en'}|${ui.search}` : null
+    if (qaSig && qaSig === shownQa && !switched) {
+      renderDetail()
+      return
+    }
+    shownQa = qaSig
     let content
-    if (showingAll() && !MERGED.includes(ui.view)) content = [h('p', { class: 'note' }, T.pickSession), sessionCards()]
+    if (ui.view === 'qa') content = qaView()
+    else if (showingAll() && !MERGED.includes(ui.view)) content = [h('p', { class: 'note' }, T.pickSession), sessionCards()]
     else if (showingAll() && ui.view === 'home') content = sessionsHome()
     else if (showingAll() && ui.view === 'activities') content = activitiesView()
     else if (ui.view === 'hooks' && (data || showingAll())) content = hooksView()
@@ -1925,7 +2037,7 @@
     if (ev.key === '/') {
       ev.preventDefault()
       $('search').focus()
-    } else if (/^[1-7]$/.test(ev.key)) {
+    } else if (/^[1-8]$/.test(ev.key)) {
       ui.view = VIEWS[Number(ev.key) - 1]
       remember()
       render()

@@ -23,6 +23,10 @@ fixes, security changes, compatibility changes, and anything you have to do by h
   session, or its folder) to see one, or all together. Home then shows a card per session, and
   Activities and Hooks merge them. The other sessions join on their own, and when the session that
   started the page closes another takes over on the same address. `/radar-web stop` ends it for all.
+- **Q&A in the browser view.** A view in the sidebar (`8`) answers the common questions about the
+  radar and the page: opening it, sessions and their names, what each hook result means, the other
+  views and privacy. In English and Portuguese, filtered by the search, nothing loaded from
+  elsewhere.
 
 ### Security
 
