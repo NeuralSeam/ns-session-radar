@@ -8,6 +8,8 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-21
+
 ### Added
 
 - **Every hook, in the browser.** A Hooks view (`7`) lists every classic hook event Claude Code
@@ -253,7 +255,8 @@ First version. Never published on its own: the public repository starts at 0.2.0
   top level. See [How it knows](./README.md#how-it-knows).
 - Not yet recorded against a real Claude Code build; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
-[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.1...main
+[Unreleased]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.8.0...main
+[0.8.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/NeuralSeam/ns-session-radar/compare/v0.5.1...v0.6.0

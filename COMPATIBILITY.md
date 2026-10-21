@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.8.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-21 |
 | 0.7.1 | 2.1.302 | Terminal | Windows 11, Node 22, English and `pt_BR` | 2026-10-17 |
 | 0.7.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-16 |
 | 0.6.0 | 2.1.301 | Terminal | Windows 11, Node 22 | 2026-10-16 |
@@ -69,6 +70,17 @@ folder the session started in, and nothing more was written in the project's roo
 simulation, its `.gitignore` is written once per copy of the module and a reload after a `cd` keeps
 that folder. `npm test` passed in English and `pt_BR`, and `claude plugin validate . --strict`
 passed on Claude Code 2.1.302.
+
+**What the 0.8.0 row adds:** the same run, simulated: a hook on every classic event recorded with
+its timing and status and none of its words kept, a second session joining the browser view on its
+own with its badge under its prompt, a new server started when the first one went away, and the
+servers exiting at the end. `npm test` passed in English and `pt_BR`, and
+`claude plugin validate . --strict` passed on Claude Code 2.1.306, its `hooks:` and `calls:` lines
+matching [SECURITY.md](./SECURITY.md). A headless `claude -p --plugin-dir .` on 2.1.304 and 2.1.306
+loaded the mod and the `radar-review` skill, but on that machine Claude Code skipped every classic
+hook of the radar (`"cc-plugin-sec-default" runs first and sent the event on past it`), so the
+Hooks view stays empty there. Not yet seen in a real session for this row: the Hooks view with
+events, the page shared by two sessions, and the Q&A view.
 
 **What it does not cover:** the Desktop app, and builds other than 2.1.301. The checks in
 [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) are what fills in a row.
