@@ -47,6 +47,10 @@ file, not memory, is the source for event and field names.
   merged.
 - **Off by default.** A setting that notifies, keeps more data or reads more files starts off.
 - **No text in the history.** It keeps counts, never a prompt or an argument.
+- **No raw text crosses a persistence boundary.** Session reload state, manual export, automatic
+  export and history labels must pass through `hooks/privacy.js`. Add a canary test for every new
+  credential shape or persisted string field. The loopback browser view may keep the live value in
+  memory; it never writes the snapshot.
 - **A new insight rule** goes in `hooks/insights.js` with a named threshold, a case that finds it
   and one that does not in `tests/insights.mjs`, its two lines in both languages under `ins` in
   `STRINGS`, a metric in `METRIC`, and a line in the README's rules table and the skill's.

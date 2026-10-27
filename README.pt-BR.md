@@ -8,7 +8,7 @@ Guia curto. O [README.md](./README.md) em inglês é o documento de referência.
 
 > **Isto é um mod, ou seja, é código.** Ele roda dentro do Claude Code com as suas permissões e vê
 > todo prompt e toda chamada de ferramenta da sessão. Não envia nada para fora da sua máquina e não
-> chama nenhum modelo; o único arquivo que grava é o export: quando você pede com `/radar-export`, ou
+> chama nenhum modelo; o único arquivo de projeto que grava é o export com redação de credenciais: quando você pede com `/radar-export`, ou
 > ao fim de cada atividade, se você ligar isso. Entre sessões
 > guarda o idioma e as configurações e, só se você ligar os insights, contagens por projeto, sem
 > prompts nem argumentos. As notificações ficam desligadas até você ligar. A visão no navegador,
@@ -37,7 +37,7 @@ Para testar sem instalar: clone este repositório e rode `claude --plugin-dir ./
 | Comando | O que faz |
 | --- | --- |
 | `/radar` | Abre ou fecha o painel, mesmo com o Claude trabalhando |
-| `/radar-export` | Grava tudo em `.claude/session-radar/session-radar-<data>.json` da pasta onde a sessão começou |
+| `/radar-export` | Grava o retrato com redação de credenciais e resumo de erros em `.claude/session-radar/session-radar-<data>.json` da pasta onde a sessão começou |
 | `/radar-lang pt\|en\|auto` | Define o idioma e o mantém nas próximas sessões |
 | `/radar-web` | Abre o radar no navegador; `/radar-web stop` encerra |
 | `/radar-config` | Abre o painel na aba Config |

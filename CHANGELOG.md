@@ -8,6 +8,32 @@ fixes, security changes, compatibility changes, and anything you have to do by h
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-27
+
+### Security
+
+- **Credential redaction before persistence.** Session reload state, manual exports and automatic
+  exports now pass through one sanitizer for authorization headers, credential assignments and
+  flags, URL query credentials and common token formats. The export adds a `redaction` receipt with
+  counts by class. This closes the gap where a short prompt or tool label could turn an observability
+  file into a copy of shell history; live terminal and loopback-browser views remain unchanged.
+- Persisted history, including its dynamic object keys and failure keys, uses the same redactor.
+  Tests carry unquoted and quoted/multiword secret canaries and fail if any reaches saved state or
+  an export. Redaction remains defense in depth: exports are still private diagnostic data and
+  their ignored folder should not be force-added to Git.
+
+### Added
+
+- **Payload-free error taxonomy.** Exports now include aggregate failures by category, operation,
+  status and duration bucket, without prompts, arguments, paths or hook reasons. The AI review uses
+  this section first, so common failure analysis no longer depends on parsing raw labels.
+
+### Changed
+
+- The privacy and contribution docs now make the persistence boundary explicit: a future field may
+  be shown live, but it cannot be saved until it goes through `hooks/privacy.js` with a regression
+  canary. This is the guard against reintroducing the same leak while extending the radar.
+
 ## [0.8.0] - 2026-10-21
 
 ### Added
