@@ -5,6 +5,8 @@
 // earlier sessions when the person turned it on. Pure functions: no `$`, no text. Each finding
 // carries a rule id and plain data; register.js turns it into words, in the pane's language.
 
+import { redactText } from './privacy.js'
+
 export const TTL_MS = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 
 // What a token costs, as a multiple of one uncached input token
@@ -60,7 +62,7 @@ function median(values) {
 
 // The command's first words, enough to name a permission rule: `npm run test` -> `npm run`
 export function commandPrefix(label) {
-  const words = String(label ?? '').trim().split(/\s+/).filter(Boolean)
+  const words = redactText(label).text.trim().split(/\s+/).filter(Boolean)
   if (!words.length) return ''
   const second = words[1]
   if (!second || /^-|[/\\.=]/.test(second)) return words[0]
@@ -176,7 +178,7 @@ function deniedFindings(session) {
 export function failKey(span) {
   if (span.name === 'Bash') return `Bash ${commandPrefix(span.label)}`
   if (span.kind === 'mcp') return span.name
-  return `${span.name} ${String(span.label ?? '').slice(0, 60)}`.trim()
+  return `${span.name} ${redactText(span.label).text.slice(0, 60)}`.trim()
 }
 
 function failingFindings(session, history) {

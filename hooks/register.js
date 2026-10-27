@@ -18,6 +18,8 @@
 // when turned on, go to the person's own notification channel.
 
 import { analyze, summarize as sessionRecord, upsertHistory, compareApplied, TTL_MS } from './insights.js'
+import { sanitizePersistent } from './privacy.js'
+import { summarizeErrors } from './errors.js'
 
 const PANE = 'session-radar'
 const MAX_SPANS = 500
@@ -27,7 +29,7 @@ const MAX_LABEL = 120
 const GENERATOR = 'session-radar by Neural Seam (https://github.com/NeuralSeam/ns-session-radar)'
 // The release, shown in the credit line and on the page. It must match .claude-plugin/plugin.json;
 // npm test checks it
-const VERSION = '0.8.0'
+const VERSION = '0.9.0'
 const LANGS = ['auto', 'pt', 'en']
 const WEB_PUSH_MS = 500
 const WEB_BEAT_MS = 5000
@@ -475,7 +477,9 @@ function saveState($) {
   if (!restoreDone) return saving
   saveDirty = false
   lastSave = Date.now()
-  const value = { v: 1, savedAt: lastSave, seq, exportRoot, title: sessionTitle, S: { ...S, agents: [...S.agents.values()] } }
+  const raw = { v: 1, savedAt: lastSave, seq, exportRoot, title: sessionTitle, S: { ...S, agents: [...S.agents.values()] } }
+  const sanitized = sanitizePersistent(raw)
+  const value = { ...sanitized.value, redaction: sanitized.report }
   saving = saving.then(() => $.state.set(SAVED, value)).catch(() => {
     saveDirty = true
   })
@@ -778,6 +782,7 @@ function snapshot() {
     agents: [...S.agents.values()],
     spans: S.spans,
     hooks: S.hooks,
+    errors: summarizeErrors({ spans: S.spans, hooks: S.hooks }),
   }
   // Added after the existing fields, and only when the person turned insights on
   if (cfg.insights) {
@@ -790,6 +795,13 @@ function snapshot() {
     }
   }
   return out
+}
+
+function persistentSnapshot() {
+  const sanitized = sanitizePersistent(snapshot())
+  const insights = sanitized.value.insights
+  if (insights) delete sanitized.value.insights
+  return { ...sanitized.value, redaction: sanitized.report, ...(insights ? { insights } : {}) }
 }
 
 // ---------------------------------------------------------------------------
@@ -912,7 +924,8 @@ async function loadInsights($) {
 }
 
 function writeHistory($) {
-  const value = hist
+  const sanitized = sanitizePersistent(hist)
+  const value = { ...sanitized.value, redaction: sanitized.report }
   histWrite = histWrite.then(() => $.store.set('history', value)).catch(() => {})
   return histWrite
 }
@@ -995,7 +1008,7 @@ async function exportJson($) {
   const name = exportName(Date.now())
   const file = `${EXPORT_DIR}/${name}`
   try {
-    await $.fs.write(await exportPath($, name), JSON.stringify(snapshot(), null, 2))
+    await $.fs.write(await exportPath($, name), JSON.stringify(persistentSnapshot(), null, 2))
     $.ui.toast(`${L.exported} ${file}`)
     return file
   } catch (err) {
@@ -1012,7 +1025,7 @@ let autoWrite = Promise.resolve()
 function autoExport($) {
   if (!cfg.autoExport) return autoWrite
   const name = exportName(S.startedAt)
-  const text = JSON.stringify(snapshot(), null, 2)
+  const text = JSON.stringify(persistentSnapshot(), null, 2)
   autoWrite = autoWrite.then(async () => $.fs.write(await exportPath($, name), text)).catch(() => {})
   return autoWrite
 }

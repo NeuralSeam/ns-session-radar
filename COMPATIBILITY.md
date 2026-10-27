@@ -10,6 +10,7 @@ statement from saying it is incompatible.
 
 | Mod | Claude Code | Surface | Operating system | Tested on |
 | --- | --- | --- | --- | --- |
+| 0.9.0 | — (simulated, see below) | — | Windows 11, Node 22 | 2026-10-27 |
 | 0.8.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-21 |
 | 0.7.1 | 2.1.302 | Terminal | Windows 11, Node 22, English and `pt_BR` | 2026-10-17 |
 | 0.7.0 | — (simulated, see below) | — | Windows 11, Node 22, English and `pt_BR` | 2026-10-16 |
@@ -81,6 +82,12 @@ loaded the mod and the `radar-review` skill, but on that machine Claude Code ski
 hook of the radar (`"cc-plugin-sec-default" runs first and sent the event on past it`), so the
 Hooks view stays empty there. Not yet seen in a real session for this row: the Hooks view with
 events, the page shared by two sessions, and the Q&A view.
+
+**What the 0.9.0 row adds:** the same simulated suite, plus canary credentials proving that session
+reload state and manual/automatic exports redact before persistence, benign paths surviving the
+sanitizer, and the additive `errors` taxonomy containing only aggregate category, operation,
+status and duration buckets. `npm test` and `npm run check` passed. Not yet seen in a real session:
+the redacted export produced by Claude Code itself.
 
 **What it does not cover:** the Desktop app, and builds other than 2.1.301. The checks in
 [CONTRIBUTING.md](./CONTRIBUTING.md#before-a-release) are what fills in a row.

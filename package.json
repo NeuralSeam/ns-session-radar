@@ -6,8 +6,8 @@
   "license": "Apache-2.0",
   "author": "Neural Seam (https://neuralseam.cloud)",
   "scripts": {
-    "check": "node --check hooks/register.js && node --check hooks/insights.js && node --check web/server.mjs && node --check web/app.js",
-    "test": "node tests/simulate.mjs && node tests/insights.mjs && node tests/web.mjs",
+    "check": "node --check hooks/register.js && node --check hooks/insights.js && node --check hooks/privacy.js && node --check hooks/errors.js && node --check web/server.mjs && node --check web/app.js",
+    "test": "node tests/privacy.mjs && node tests/errors.mjs && node tests/simulate.mjs && node tests/insights.mjs && node tests/web.mjs",
     "preview": "node tests/simulate.mjs --print"
   },
   "engines": {

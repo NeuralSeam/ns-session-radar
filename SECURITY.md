@@ -28,7 +28,7 @@ the subagent when there is no description.
 
 ## What it keeps
 
-In memory, for the current conversation: for each tool call, its name and its main argument cut to
+In the mod's live memory, for the current conversation: for each tool call, its name and its main argument cut to
 one line of at most 120 characters, plus timings and status; for each model request, its model and
 token counts; for each prompt you send, its first 120 characters on one line, plus timings and
 counts; for each hook event, its name, the tool or occasion it is about (the same 120-character
@@ -37,12 +37,14 @@ type and message), timings, and what the hooks answered: the decision, its reaso
 three `additionalContext` notes, each cut to one line of 120 characters. Never the prompt a
 `UserPromptSubmit` carries, a message, a tool's output or Claude's reply. A message shown in many
 pieces is one record. At most 500 calls, 500 hook events and 200 prompts; older ones are dropped. All of it is gone when the
-session ends, or on `/clear`, `/resume`, `/branch`, or the `x` key in the pane.
+session ends, or on `/clear`, `/resume`, `/branch`, or the `x` key in the pane. This live copy is what
+the terminal and loopback browser show; it is not the copy written to a persistence boundary.
 
-A copy of the same record is handed to Claude Code's session state (`$.state`, key
+A redacted copy of the record is handed to Claude Code's session state (`$.state`, key
 `session-radar.session`), also in memory, so a reload of the mod (an update, `/reload-plugins`)
 carries on instead of starting over. It holds nothing the record above does not, is written at most
-every 2 seconds while something changed, and ends with the session.
+every 2 seconds while something changed, and ends with the session. Before `$.state.set`, every
+string passes through `hooks/privacy.js`, the same boundary used by exports.
 
 Between sessions, in its own store (a JSON file Claude Code keeps for the mod under your
 configuration directory):
@@ -53,8 +55,10 @@ configuration directory):
 | `config` | The settings of the Config tab: on/off or number values, and the radar's position (`side` or `bottom`) | Once you change one |
 | `history` | Per project folder, for each of the last 30 sessions in at most 20 projects: counts of activities, calls, failures and denials; tokens and cache; the size of the first request; the highest context use; time and failures per tool name; the names of the MCP servers called; and, for each failing command, its tool and **first two words** (for example `Bash npm test`). Also the time and rule of each change you marked as applied | Only while insights are on. `Delete the stored history` in Config removes the key |
 
-The history holds no prompt text, no tool argument beyond those first two words of a failing
-command, and nothing from `.mcp.json` but server names. The project folder's path is its key.
+The history holds no prompt text, no raw tool argument beyond a redacted prefix of a failing
+command, and nothing from `.mcp.json` but server names. Before it reaches `$.store.set`, its values
+and dynamic object keys pass through `hooks/privacy.js`. The redacted project folder's path is its
+key.
 
 With insights on, the mod reads the project's `.mcp.json` when the session starts and when you turn
 insights on, and keeps only the names under `mcpServers`. It never reads the servers' commands or
@@ -106,7 +110,7 @@ Every Claude Code session of yours on the machine shares one server. Where it li
 tokens go to the hub file, `session-radar/hub.json` under your Claude Code configuration directory
 (`~/.claude`, or `CLAUDE_CONFIG_DIR`), written readable by your user alone. Each session with the
 radar reads it every 5 seconds and, when a server that knows its ingest token answers there, sends
-its snapshot too, so the page shows every session, picked one at a time in its header or all
+its live snapshot too, so the page shows every session, picked one at a time in its header or all
 together. When the session whose child the server is goes away, the next session to notice starts
 another on the same port with the same tokens, so an open page carries on. `/radar-web stop` marks
 the hub stopped, and no session starts it again until someone runs `/radar-web`. Anyone who can
@@ -119,7 +123,7 @@ so is any request carrying another site's `Origin`. The page is static, served w
 
 It keeps the last snapshot of each session in memory, an ended one for 30 minutes, and nothing on
 disk but the hub file. A snapshot holds what
-[What it keeps](#what-it-keeps) lists, the same as the export file, plus the session's badge, id and
+[What it keeps](#what-it-keeps) lists in its live form, plus the session's badge, id and
 title, the folder it runs in, its model and effort level, so the page can tell parallel sessions apart, and,
 while insights are on, the findings and comparisons as the Insights tab words them, and the last 20
 notifications you turned on, with the same text. Anyone who has
@@ -152,10 +156,19 @@ puts a `.gitignore` holding `*` beside it, so the folder stays out of git. With 
 automatically` on in Config (off by default), the same file is also written, without asking, each
 time an activity ends: one file per conversation, `session-radar-<when it started>.json`, rewritten
 with the whole conversation so far. It contains the tool
-arguments and prompt beginnings described above, which can include a secret if one was typed into a
-shell command or a prompt. With insights on, it also holds the findings, the project's history and
-the names of the MCP servers in `.mcp.json`. Treat
-the file like a shell history: read it before sharing it, and do not commit it. A
+arguments and prompt beginnings described above after credential redaction. Before either a manual
+or automatic write, `hooks/privacy.js` recursively sanitizes every string. It recognizes
+authorization headers, credential-like assignments and command flags (including quoted multiword
+values), URL query credentials and common provider token formats. The additive `redaction` field
+reports how many replacements were made by class; it contains no original value.
+
+The export also includes `errors`, an aggregate taxonomy by category, operation, status and duration
+bucket. It contains no prompt, argument, path, hook reason or tool output. With insights on, the
+export also holds the findings, the project's history and the names of the MCP servers in
+`.mcp.json`.
+
+Pattern-based redaction cannot prove that arbitrary prose contains no secret. Treat the file as
+private diagnostic data: read it before sharing it, and do not commit it. A
 `git add -f` still adds it past that `.gitignore`.
 
 ## Check it yourself

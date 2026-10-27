@@ -13,7 +13,7 @@ Thinking · ⚙ Bash 4.2s · 12 tools · 7 req. · 2 agents…
 
 > **This is a mod, which means it is code.** It runs inside Claude Code with your permissions and
 > sees every prompt and tool call in the session. It sends nothing off your machine and calls no
-> model; the only file it writes is the export: when you ask for it with `/radar-export`, or after
+> model; the only project file it writes is the redacted export: when you ask for it with `/radar-export`, or after
 > each activity if you turn that on. Between sessions it
 > keeps your language and settings and, only if you turn insights on, counts per project with no
 > prompt or argument in them. Notifications are off until you turn them on. The browser view, when
@@ -104,7 +104,7 @@ press Enter to change a line:
 | Warn before the cache expires | One notification per cache entry, 30 s to 5 min before the main session's cache expires, while nothing is running: how long is left and how many tokens the next request would rewrite. An unknown TTL counts as 5 minutes, and the text says so |
 | Insights, with per-project history | Turns on the Insights tab and keeps counts per project between sessions (below) |
 | Suggest the AI review | Shows the [AI review](#ai-review) in the Insights tab |
-| Save the export automatically when an activity ends | Writes the export after each activity, without asking: one `session-radar-<start>.json` per conversation in `.claude/session-radar/` of the folder the session started in, rewritten each time with the whole conversation, ready for the [AI review](#ai-review). That folder ignores itself in git |
+| Save the export automatically when an activity ends | Writes the redacted export after each activity, without asking: one `session-radar-<start>.json` per conversation in `.claude/session-radar/` of the folder the session started in, rewritten each time with the whole conversation, ready for the [AI review](#ai-review). That folder ignores itself in git |
 | Always show this session's badge | Keeps the session's badge under the prompt even with the browser view closed. See [Browser view](#browser-view) |
 | Delete the stored history | Deletes every project's history |
 | Language | auto, Portuguese or English |
@@ -120,7 +120,7 @@ notifications* in its footer and allow it.
 **History.** With insights on, the radar keeps, per project folder, counts for each of the last 30
 sessions in at most 20 projects: activities, calls, failures, denials, tokens, cache, the size of the
 first request, time and failures per tool, which MCP servers were called, and the first two words of
-each failing command. No prompt and no argument. It also reads the server names from the project's
+each failing command after credential redaction. No prompt and no raw argument. It also reads the server names from the project's
 `.mcp.json`, and nothing else from it. MCP servers you added for your user, not the project, are in
 `~/.claude.json`, which a mod cannot read, so the unused-MCP rule does not see them.
 
@@ -262,7 +262,8 @@ CLAUDE.md, the `permissions`, `model` and `hooks` of your settings, and `.mcp.js
 changes as diffs, each with the numbers behind it and the radar metric that should move. It also
 does what fixed rules cannot: it groups your prompts into recurring tasks worth a skill, spots where
 CLAUDE.md and what happened disagree, and gives its guess, with its confidence, of why a command
-keeps failing. It applies nothing without asking, one change at a time.
+keeps failing. The export's aggregate `errors` section is the first source for failure counts; raw
+labels are not needed for the taxonomy. It applies nothing without asking, one change at a time.
 
 The review **uses tokens**, in the current session. The mod itself still calls no model: the skill
 is instructions for Claude, run only when you call it.
